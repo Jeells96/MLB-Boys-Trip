@@ -1,256 +1,609 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MLB 2026 • PDX Season Overview</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
-        body { font-family: 'Inter', system_ui, sans-serif; }
-        .title-font { font-family: 'Space Grotesk', sans-serif; }
-        .game-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .game-card:hover { transform: translateY(-1px); }
-        .filter-chip { transition: all 0.2s; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚾ PDX → Saturday MLB</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --card: #161b22;
+    --border: #21262d;
+    --accent: #e8c56a;
+    --accent2: #5ca8ff;
+    --green: #3fb68c;
+    --red: #ff5f57;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --chip: #1c2128;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+/* HEADER */
+.header {
+background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+border-bottom: 1px solid var(–border);
+padding: 12px 14px 10px;
+position: sticky;
+top: 0;
+z-index: 100;
+}
+.header-top {
+display: flex;
+align-items: center;
+gap: 8px;
+margin-bottom: 10px;
+}
+.logo {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 22px;
+letter-spacing: 1px;
+color: var(–accent);
+line-height: 1;
+}
+.logo span { color: var(–text); }
+.subtitle {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+letter-spacing: 0.5px;
+}
+.status-dot {
+width: 6px; height: 6px;
+border-radius: 50%;
+background: var(–muted);
+margin-left: auto;
+transition: background 0.3s;
+}
+.status-dot.loading { background: var(–accent); animation: pulse 1s infinite; }
+.status-dot.ready { background: var(–green); }
+.status-dot.error { background: var(–red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* FILTER BAR */
+.filter-wrap {
+overflow-x: auto;
+-webkit-overflow-scrolling: touch;
+scrollbar-width: none;
+}
+.filter-wrap::-webkit-scrollbar { display: none; }
+.filter-bar {
+display: flex;
+gap: 5px;
+padding-bottom: 2px;
+white-space: nowrap;
+}
+.chip {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 4px 9px;
+border-radius: 20px;
+cursor: pointer;
+transition: all 0.15s;
+user-select: none;
+letter-spacing: 0.3px;
+}
+.chip:active { transform: scale(0.96); }
+.chip.active {
+background: var(–accent);
+border-color: var(–accent);
+color: #000;
+font-weight: 500;
+}
+.chip.all.active {
+background: var(–accent2);
+border-color: var(–accent2);
+color: #000;
+}
+
+/* MAIN */
+main {
+padding: 10px 10px 40px;
+}
+
+/* DATE DIVIDER */
+.date-divider {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 13px;
+letter-spacing: 2px;
+color: var(–muted);
+padding: 14px 4px 6px;
+border-bottom: 1px solid var(–border);
+margin-bottom: 8px;
+}
+.date-divider span {
+color: var(–accent);
+margin-right: 6px;
+}
+
+/* GAME CARD */
+.game-card {
+background: var(–card);
+border: 1px solid var(–border);
+border-radius: 10px;
+margin-bottom: 7px;
+overflow: hidden;
+transition: border-color 0.15s;
+}
+.game-card:active { border-color: var(–accent); }
+
+.card-top {
+display: grid;
+grid-template-columns: 1fr auto;
+align-items: start;
+padding: 9px 11px 7px;
+gap: 6px;
+}
+
+.matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 20px;
+letter-spacing: 1.5px;
+line-height: 1;
+color: var(–text);
+}
+.venue-time {
+font-size: 11px;
+color: var(–muted);
+margin-top: 2px;
+font-family: ‘DM Mono’, monospace;
+}
+.venue-time strong { color: var(–text); font-weight: 500; }
+
+.right-col {
+text-align: right;
+display: flex;
+flex-direction: column;
+align-items: flex-end;
+gap: 4px;
+}
+.flight-badge {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–accent2);
+background: rgba(92,168,255,0.1);
+border: 1px solid rgba(92,168,255,0.2);
+border-radius: 4px;
+padding: 2px 6px;
+white-space: nowrap;
+}
+.expedia-btn {
+display: inline-flex;
+align-items: center;
+gap: 4px;
+background: var(–accent);
+color: #000;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 500;
+padding: 4px 8px;
+border-radius: 5px;
+text-decoration: none;
+letter-spacing: 0.3px;
+white-space: nowrap;
+}
+.expedia-btn:active { opacity: 0.8; }
+
+/* TIMING ROWS */
+.timing-section {
+border-top: 1px solid var(–border);
+padding: 7px 11px;
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 4px;
+}
+.timing-item {
+display: flex;
+flex-direction: column;
+gap: 1px;
+}
+.timing-label {
+font-size: 9px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.5px;
+font-family: ‘DM Mono’, monospace;
+}
+.timing-value {
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+font-weight: 500;
+color: var(–text);
+white-space: nowrap;
+}
+.timing-value.highlight { color: var(–accent); }
+.timing-value.green { color: var(–green); }
+.timing-value.red { color: var(–red); }
+
+/* PRICE ROW */
+.price-row {
+border-top: 1px solid var(–border);
+padding: 6px 11px;
+display: flex;
+align-items: center;
+gap: 6px;
+}
+.price-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+white-space: nowrap;
+}
+.price-input {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–accent);
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+font-weight: 500;
+padding: 3px 7px;
+border-radius: 5px;
+width: 80px;
+outline: none;
+transition: border-color 0.15s;
+}
+.price-input:focus { border-color: var(–accent); }
+
+/* LOADING / EMPTY */
+.loading-state, .empty-state, .error-state {
+text-align: center;
+padding: 60px 20px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+}
+.loading-state .big { font-size: 32px; margin-bottom: 12px; }
+.error-state { color: var(–red); }
+
+/* COUNT */
+.game-count {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+padding: 6px 4px 0;
+margin-bottom: -2px;
+}
+</style>
+
 </head>
-<body class="bg-zinc-950 text-white">
-    <header class="border-b border-zinc-800 bg-black sticky top-0 z-50">
-        <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-x-3">
-                <div class="w-8 h-8 bg-[#d93b2e] rounded-2xl flex items-center justify-center text-white text-2xl">⚾</div>
-                <h1 class="title-font text-3xl tracking-tighter">MLB 2026 • PDX</h1>
-            </div>
-            <div onclick="refreshAll()" class="text-sm px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-3xl cursor-pointer">Refresh season</div>
-        </div>
-    </header>
+<body>
 
-    <div class="max-w-screen-2xl mx-auto px-6 py-6">
-        <h2 class="title-font text-4xl tracking-tighter mb-1">Full remaining Saturdays</h2>
-        <p class="text-zinc-400 text-sm mb-6">PDX round-trip • 3h buffers • 3-letter matchups</p>
-
-        <!-- FILTER BAR -->
-        <div class="mb-8 overflow-x-auto pb-2">
-            <div class="flex flex-wrap gap-2" id="filter-bar"></div>
-        </div>
-
-        <div id="season-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
-
-        <div id="empty-state" class="hidden text-center py-16 text-zinc-400">No games match your filters.</div>
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="logo">⚾ <span>PDX</span> → MLB</div>
+      <div class="subtitle">SATURDAY GAMES · ROUND TRIP FROM PORTLAND</div>
     </div>
+    <div class="status-dot loading" id="statusDot"></div>
+  </div>
+  <div class="filter-wrap">
+    <div class="filter-bar" id="filterBar">
+      <div class="chip all active" data-city="ALL">All</div>
+    </div>
+  </div>
+</div>
 
-    <script>
-        const TEAM_ABBR = {
-            "Baltimore Orioles": "BAL", "Boston Red Sox": "BOS", "New York Yankees": "NYY",
-            "Tampa Bay Rays": "TB", "Toronto Blue Jays": "TOR",
-            "Chicago White Sox": "CWS", "Cleveland Guardians": "CLE", "Detroit Tigers": "DET",
-            "Kansas City Royals": "KC", "Minnesota Twins": "MIN",
-            "Houston Astros": "HOU", "Los Angeles Angels": "LAA", "Oakland Athletics": "OAK",
-            "Seattle Mariners": "SEA", "Texas Rangers": "TEX",
-            "Atlanta Braves": "ATL", "Miami Marlins": "MIA", "New York Mets": "NYM",
-            "Philadelphia Phillies": "PHI", "Washington Nationals": "WSH",
-            "Chicago Cubs": "CHC", "Cincinnati Reds": "CIN", "Milwaukee Brewers": "MIL",
-            "Pittsburgh Pirates": "PIT", "St. Louis Cardinals": "STL",
-            "Arizona Diamondbacks": "ARI", "Colorado Rockies": "COL", "Los Angeles Dodgers": "LAD",
-            "San Diego Padres": "SD", "San Francisco Giants": "SF"
-        };
+<main id="main">
+  <div class="loading-state">
+    <div class="big">⚾</div>
+    Loading Saturday games…
+  </div>
+</main>
 
-        const TEAM_AIRPORT_MAP = {
-            "Baltimore Orioles": {code: "BWI", city: "Baltimore"}, "Boston Red Sox": {code: "BOS", city: "Boston"},
-            "New York Yankees": {code: "JFK", city: "New York"}, "Tampa Bay Rays": {code: "TPA", city: "Tampa"},
-            "Toronto Blue Jays": {code: "YYZ", city: "Toronto"}, "Chicago White Sox": {code: "ORD", city: "Chicago"},
-            "Cleveland Guardians": {code: "CLE", city: "Cleveland"}, "Detroit Tigers": {code: "DTW", city: "Detroit"},
-            "Kansas City Royals": {code: "MCI", city: "Kansas City"}, "Minnesota Twins": {code: "MSP", city: "Minneapolis"},
-            "Houston Astros": {code: "IAH", city: "Houston"}, "Los Angeles Angels": {code: "SNA", city: "Anaheim"},
-            "Oakland Athletics": {code: "OAK", city: "Oakland"}, "Seattle Mariners": {code: "SEA", city: "Seattle"},
-            "Texas Rangers": {code: "DFW", city: "Arlington"}, "Atlanta Braves": {code: "ATL", city: "Atlanta"},
-            "Miami Marlins": {code: "MIA", city: "Miami"}, "New York Mets": {code: "JFK", city: "New York"},
-            "Philadelphia Phillies": {code: "PHL", city: "Philadelphia"}, "Washington Nationals": {code: "DCA", city: "Washington"},
-            "Chicago Cubs": {code: "ORD", city: "Chicago"}, "Cincinnati Reds": {code: "CVG", city: "Cincinnati"},
-            "Milwaukee Brewers": {code: "MKE", city: "Milwaukee"}, "Pittsburgh Pirates": {code: "PIT", city: "Pittsburgh"},
-            "St. Louis Cardinals": {code: "STL", city: "St. Louis"}, "Arizona Diamondbacks": {code: "PHX", city: "Phoenix"},
-            "Colorado Rockies": {code: "DEN", city: "Denver"}, "Los Angeles Dodgers": {code: "LAX", city: "Los Angeles"},
-            "San Diego Padres": {code: "SAN", city: "San Diego"}, "San Francisco Giants": {code: "SFO", city: "San Francisco"}
-        };
+<script>
+// ─── TEAM DATA ────────────────────────────────────────────────────────────────
+const TEAM_INFO = {
+  // abbr: [3-letter code, city display, timezone, airport code, flight hours from PDX, IATA]
+  109: ['ARI', 'Phoenix',     'America/Phoenix',        'PHX', 2.5,  'PHX'],
+  144: ['ATL', 'Atlanta',     'America/New_York',       'ATL', 5.5,  'ATL'],
+  110: ['BAL', 'Baltimore',   'America/New_York',       'BWI', 5.5,  'BWI'],
+  111: ['BOS', 'Boston',      'America/New_York',       'BOS', 6.0,  'BOS'],
+  112: ['CHC', 'Chicago',     'America/Chicago',        'ORD', 4.5,  'ORD'],
+  145: ['CWS', 'Chicago',     'America/Chicago',        'MDW', 4.5,  'MDW'],
+  113: ['CIN', 'Cincinnati',  'America/New_York',       'CVG', 5.0,  'CVG'],
+  114: ['CLE', 'Cleveland',   'America/New_York',       'CLE', 5.0,  'CLE'],
+  115: ['COL', 'Denver',      'America/Denver',         'DEN', 2.5,  'DEN'],
+  116: ['DET', 'Detroit',     'America/New_York',       'DTW', 5.0,  'DTW'],
+  117: ['HOU', 'Houston',     'America/Chicago',        'IAH', 4.0,  'IAH'],
+  118: ['KC',  'Kansas City', 'America/Chicago',        'MCI', 4.0,  'MCI'],
+  108: ['LAA', 'Los Angeles', 'America/Los_Angeles',    'SNA', 2.0,  'SNA'],
+  119: ['LAD', 'Los Angeles', 'America/Los_Angeles',    'LAX', 2.0,  'LAX'],
+  158: ['MIL', 'Milwaukee',   'America/Chicago',        'MKE', 4.5,  'MKE'],
+  142: ['MIN', 'Minneapolis', 'America/Chicago',        'MSP', 3.5,  'MSP'],
+  121: ['NYM', 'New York',    'America/New_York',       'LGA', 5.5,  'LGA'],
+  147: ['NYY', 'New York',    'America/New_York',       'EWR', 5.5,  'EWR'],
+  133: ['OAK', 'Oakland',     'America/Los_Angeles',    'OAK', 1.5,  'OAK'],
+  143: ['PHI', 'Philadelphia','America/New_York',       'PHL', 5.5,  'PHL'],
+  134: ['PIT', 'Pittsburgh',  'America/New_York',       'PIT', 5.0,  'PIT'],
+  135: ['SD',  'San Diego',   'America/Los_Angeles',    'SAN', 2.5,  'SAN'],
+  137: ['SF',  'San Francisco','America/Los_Angeles',   'SFO', 1.5,  'SFO'],
+  136: ['SEA', 'Seattle',     'America/Los_Angeles',    'SEA', 0.75, 'SEA'],
+  138: ['STL', 'St. Louis',   'America/Chicago',        'STL', 4.5,  'STL'],
+  139: ['TB',  'Tampa Bay',   'America/New_York',       'TPA', 5.5,  'TPA'],
+  140: ['TEX', 'Dallas',      'America/Chicago',        'DFW', 4.0,  'DFW'],
+  141: ['TOR', 'Toronto',     'America/Toronto',        'YYZ', 5.5,  'YYZ'],
+  120: ['WSH', 'Washington',  'America/New_York',       'DCA', 5.5,  'DCA'],
+  146: ['MIA', 'Miami',       'America/New_York',       'MIA', 6.0,  'MIA'],
+};
 
-        const PDX_FLIGHT_DURATIONS = {
-            "BWI":5.5,"BOS":5.5,"JFK":5.5,"TPA":6,"YYZ":5,"ORD":4,"CLE":5,"DTW":4.5,
-            "MCI":3.5,"MSP":3.5,"IAH":4,"SNA":2.5,"OAK":1.5,"SEA":1,"DFW":4,
-            "ATL":5,"MIA":6,"PHL":5.5,"DCA":5.5,"CVG":4.5,"MKE":4,"PIT":5,"STL":4,
-            "PHX":2.5,"DEN":2.5,"LAX":2.5,"SAN":2.5,"SFO":1.5
-        };
+function getTeamInfo(id) {
+  return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0, 'LAX'];
+}
 
-        let allGames = [];
-        let activeFilters = new Set();
+// ─── TIME UTILS ───────────────────────────────────────────────────────────────
+function parseUTC(str) { return new Date(str); }
 
-        async function fetchMLBGames(dateStr) {
-            try {
-                const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`);
-                const data = await res.json();
-                return data.dates?.[0]?.games || [];
-            } catch { return []; }
-        }
+function toTZ(date, tz) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true
+  }).format(date);
+}
 
-        function toET(dateUTC) { return new Date(dateUTC).toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true}) + " ET"; }
-        function toPT(dateUTC) { return new Date(dateUTC).toLocaleString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit',hour12:true}) + " PT"; }
+function addHours(date, h) {
+  return new Date(date.getTime() + h * 3600000);
+}
 
-        function getAllSaturdays() {
-            const dates = [];
-            let current = new Date();
-            const daysToNextSat = (6 - current.getDay() + 7) % 7 || 7;
-            current.setDate(current.getDate() + daysToNextSat);
-            const seasonEnd = new Date("2026-09-27");
-            while (current <= seasonEnd) {
-                const yyyy = current.getFullYear();
-                const mm = String(current.getMonth()+1).padStart(2,'0');
-                const dd = String(current.getDate()).padStart(2,'0');
-                dates.push({display: current.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'}), value: `${yyyy}-${mm}-${dd}`});
-                current.setDate(current.getDate() + 7);
-            }
-            return dates;
-        }
+function formatTime(date, tz) {
+  return toTZ(date, tz);
+}
 
-        function calculatePDXDeparture(gameStartUTC, durationHours) {
-            const arriveByUTC = new Date(gameStartUTC.getTime() - 3*3600000);
-            const depUTC = new Date(arriveByUTC.getTime() - (durationHours*3600000) - 3600000);
-            return toPT(depUTC);
-        }
+function formatShortDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
-        async function loadFullSeason() {
-            const container = document.getElementById('season-container');
-            container.innerHTML = '<div class="col-span-full text-center py-12 text-zinc-400">Loading full season Saturdays…</div>';
-            
-            const saturdays = getAllSaturdays();
-            const promises = saturdays.map(sat => fetchMLBGames(sat.value).then(games => ({date: sat, games})));
-            const results = await Promise.all(promises);
-            
-            allGames = [];
-            results.forEach(({date, games}) => {
-                games.forEach(game => {
-                    const homeTeam = game.teams.home.team.name;
-                    if (TEAM_ABBR[homeTeam]) allGames.push({date, game, homeTeam});
-                });
-            });
+// ─── EXPEDIA URL ──────────────────────────────────────────────────────────────
+function expediaURL(destIATA, dateStr) {
+  // dateStr = YYYY-MM-DD
+  const [y, m, d] = dateStr.split('-');
+  const dep = `${y}-${m}-${d}`;
+  return `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from%3APDX%2Cto%3A${destIATA}%2Cdeparture%3A${dep}TANYT&leg2=from%3A${destIATA}%2Cto%3APDX%2Cdeparture%3A${dep}TANYT&passengers=adults%3A1&mode=search`;
+}
 
-            renderSeason();
-            buildFilterBar();
-        }
+// ─── FETCH MLB SCHEDULE ───────────────────────────────────────────────────────
+async function fetchSaturdayGames() {
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const endDate = '2025-09-28'; // MLB regular season end
 
-        function buildFilterBar() {
-            const bar = document.getElementById('filter-bar');
-            bar.innerHTML = `<button onclick="resetFilters()" class="px-4 py-1 text-xs bg-emerald-400 text-emerald-950 rounded-3xl font-medium">All</button>`;
-            const uniqueHomes = [...new Set(allGames.map(g => g.homeTeam))].sort();
-            uniqueHomes.forEach(team => {
-                const abbr = TEAM_ABBR[team];
-                const chip = document.createElement('button');
-                chip.className = `filter-chip px-4 py-1 text-xs border border-zinc-700 hover:border-white rounded-3xl ${activeFilters.has(team) ? 'bg-white text-zinc-950' : 'bg-transparent'}`;
-                chip.textContent = `${abbr} ${TEAM_AIRPORT_MAP[team].city}`;
-                chip.onclick = () => toggleFilter(team, chip);
-                bar.appendChild(chip);
-            });
-        }
+  // Get all Saturdays from today to end of season
+  const saturdays = [];
+  let cur = new Date(todayStr + 'T12:00:00Z');
+  const end = new Date(endDate + 'T12:00:00Z');
+  // Start from next Saturday if today isn't Saturday
+  while (cur.getUTCDay() !== 6) cur = addHours(cur, 24);
+  while (cur <= end) {
+    saturdays.push(cur.toISOString().split('T')[0]);
+    cur = addHours(cur, 7 * 24);
+  }
 
-        function toggleFilter(team, chip) {
-            if (activeFilters.has(team)) activeFilters.delete(team);
-            else activeFilters.add(team);
-            chip.classList.toggle('bg-white');
-            chip.classList.toggle('text-zinc-950');
-            renderSeason();
-        }
+  if (saturdays.length === 0) return [];
 
-        function resetFilters() {
-            activeFilters.clear();
-            buildFilterBar();
-            renderSeason();
-        }
+  const startDate = saturdays[0];
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate=${startDate}&endDate=${endDate}&gameType=R&hydrate=team`;
 
-        function renderSeason() {
-            const container = document.getElementById('season-container');
-            container.innerHTML = '';
-            
-            let currentDate = '';
-            const filtered = allGames.filter(item => activeFilters.size === 0 || activeFilters.has(item.homeTeam));
+  const resp = await fetch(url);
+  const data = await resp.json();
 
-            if (filtered.length === 0) {
-                document.getElementById('empty-state').classList.remove('hidden');
-                return;
-            }
-            document.getElementById('empty-state').classList.add('hidden');
+  // Filter to Saturdays only
+  const satSet = new Set(saturdays);
+  const games = [];
 
-            filtered.forEach(({date, game}) => {
-                const homeTeam = game.teams.home.team.name;
-                const awayTeam = game.teams.away.team.name;
-                const dest = TEAM_AIRPORT_MAP[homeTeam];
-                const abbrHome = TEAM_ABBR[homeTeam];
-                const abbrAway = TEAM_ABBR[awayTeam] || awayTeam.substring(0,3).toUpperCase();
-                const gameStartUTC = new Date(game.gameDate);
-                const gameET = toET(game.gameDate);
-                const duration = PDX_FLIGHT_DURATIONS[dest.code] || 4;
-                const arriveByPT = toPT(new Date(gameStartUTC.getTime() - 3*3600000));
-                const gameEnd = new Date(gameStartUTC.getTime() + 3*3600000);
-                const departAfterPT = toPT(new Date(gameEnd.getTime() + 3*3600000));
-                const leavePDXPT = calculatePDXDeparture(gameStartUTC, duration);
-                const gameDateStr = date.value;
+  for (const dateObj of (data.dates || [])) {
+    if (!satSet.has(dateObj.date)) continue;
+    for (const game of dateObj.games) {
+      if (game.gameType !== 'R') continue;
+      const status = game.status?.abstractGameState;
+      // Skip completed games
+      if (status === 'Final') continue;
+      games.push({ date: dateObj.date, game });
+    }
+  }
 
-                const googleLink = `https://www.google.com/travel/flights?q=Flights%20to%20${dest.code}%20from%20PDX%20on%20${gameDateStr}%20through%20${gameDateStr}`;
-                const expediaLink = `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from:PDX,to:${dest.code},departure:${gameDateStr}TANYT&leg2=from:${dest.code},to:PDX,departure:${gameDateStr}TANYT&mode=search`;
+  return games;
+}
 
-                if (date.display !== currentDate) {
-                    currentDate = date.display;
-                    const header = document.createElement('div');
-                    header.className = 'col-span-full text-lg font-medium text-zinc-400 mt-8 mb-3';
-                    header.textContent = currentDate;
-                    container.appendChild(header);
-                }
+// ─── BUILD CARD ───────────────────────────────────────────────────────────────
+function buildCard(dateStr, game) {
+  const away = game.teams?.away?.team;
+  const home = game.teams?.home?.team;
+  if (!away || !home) return null;
 
-                const cardHTML = `
-                <div class="game-card bg-zinc-900 rounded-3xl p-4 border border-zinc-800 text-sm">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="font-medium">${abbrAway} @ ${abbrHome}</div>
-                        <div class="text-right text-xs text-zinc-400">${dest.city}</div>
-                    </div>
-                    <div class="text-[#d93b2e] font-semibold mb-3">${gameET}</div>
-                    
-                    <div class="text-xs space-y-1.5 text-zinc-400 mb-4">
-                        <div>Arrive by <span class="text-white">${arriveByPT}</span></div>
-                        <div>Leave PDX by <span class="text-white">${leavePDXPT}</span> (~${duration}h)</div>
-                        <div>Leave ${dest.city} after <span class="text-white">${departAfterPT}</span> (~${duration}h)</div>
-                        <div class="text-emerald-400 text-[10px]">Saturday-night return preferred</div>
-                    </div>
+  const awayInfo = getTeamInfo(away.id);
+  const homeInfo = getTeamInfo(home.id);
 
-                    <div class="flex justify-between text-[10px] text-zinc-400 border-t border-zinc-800 pt-3">
-                        <a href="${googleLink}" target="_blank" class="underline hover:text-white">Google Flights</a>
-                        <a href="${expediaLink}" target="_blank" class="underline hover:text-white">Expedia</a>
-                    </div>
+  const [awayCode] = awayInfo;
+  const [homeCode, homeCity, homeTZ, homeIATA, flightHours] = homeInfo;
 
-                    <div class="mt-4 flex items-center text-xs">
-                        <span class="text-zinc-400">price found: $</span>
-                        <input type="text" class="price-input bg-transparent border-b border-zinc-700 focus:border-white w-16 text-center mx-2 outline-none text-sm" placeholder="___">
-                        <span onclick="savePrice(this)" class="text-emerald-400 cursor-pointer underline text-xs">save</span>
-                        <span class="saved-price ml-3 font-medium text-emerald-400 hidden"></span>
-                    </div>
-                </div>`;
-                container.innerHTML += cardHTML;
-            });
-        }
+  // Game start time
+  let gameStartUTC = null;
+  let startTimeDisplay = 'TBD';
+  if (game.gameDate) {
+    gameStartUTC = parseUTC(game.gameDate);
+    startTimeDisplay = formatTime(gameStartUTC, homeTZ);
+  }
 
-        function savePrice(el) {
-            const input = el.parentElement.querySelector('.price-input');
-            const saved = el.parentElement.querySelector('.saved-price');
-            if (input.value.trim()) {
-                input.classList.add('hidden');
-                saved.textContent = '$' + input.value.trim();
-                saved.classList.remove('hidden');
-            }
-        }
+  // Timing calcs
+  let arriveby = '—';
+  let leavePDX = '—';
+  let leaveCity = '—';
 
-        async function refreshAll() {
-            await loadFullSeason();
-        }
+  if (gameStartUTC) {
+    // Arrive by = game start - 3h (in destination TZ)
+    const arriveTime = addHours(gameStartUTC, -3);
+    arriveby = formatTime(arriveTime, homeTZ);
 
-        window.onload = () => {
-            loadFullSeason();
-        };
-    </script>
+    // Leave PDX by = arrive_time - flight_hours - 1h buffer (displayed in PT)
+    const leavePDXTime = addHours(arriveTime, -(flightHours + 1));
+    leavePDX = formatTime(leavePDXTime, 'America/Los_Angeles');
+
+    // Leave city after = game start + 3h (game) + 3h buffer
+    const leaveTime = addHours(gameStartUTC, 6);
+    leaveCity = formatTime(leaveTime, homeTZ);
+  }
+
+  const flightStr = flightHours < 1 ? `~${Math.round(flightHours * 60)}m` : `~${flightHours}h`;
+  const expUrl = expediaURL(homeIATA, dateStr);
+
+  const cardId = `card-${game.gamePk}`;
+  const inputId = `price-${game.gamePk}`;
+
+  return { homeCity, html: `
+    <div class="game-card" id="${cardId}" data-city="${homeCity}">
+      <div class="card-top">
+        <div>
+          <div class="matchup">${awayCode} @ ${homeCode}</div>
+          <div class="venue-time">
+            <strong>${homeCity}</strong> · ${startTimeDisplay}
+          </div>
+        </div>
+        <div class="right-col">
+          <div class="flight-badge">✈ PDX ${flightStr}</div>
+          <a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener">
+            FLIGHTS ↗
+          </a>
+        </div>
+      </div>
+      <div class="timing-section">
+        <div class="timing-item">
+          <div class="timing-label">Leave PDX</div>
+          <div class="timing-value highlight">${leavePDX} PT</div>
+        </div>
+        <div class="timing-item">
+          <div class="timing-label">Arrive by</div>
+          <div class="timing-value green">${arriveby}</div>
+        </div>
+        <div class="timing-item">
+          <div class="timing-label">Leave after</div>
+          <div class="timing-value red">${leaveCity}</div>
+        </div>
+      </div>
+      <div class="price-row">
+        <span class="price-label">price found: $</span>
+        <input class="price-input" id="${inputId}" type="text" inputmode="decimal" placeholder="—"
+          onchange="savePrice('${inputId}', this.value)"
+          value="${localStorage.getItem(inputId) || ''}">
+      </div>
+    </div>
+  ` };
+}
+
+// ─── PRICE PERSISTENCE ────────────────────────────────────────────────────────
+function savePrice(key, val) {
+  try { localStorage.setItem(key, val); } catch(e) {}
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+let allGames = [];
+let activeFilter = 'ALL';
+
+function render(filter) {
+  activeFilter = filter;
+  const main = document.getElementById('main');
+
+  const filtered = filter === 'ALL'
+    ? allGames
+    : allGames.filter(g => g.homeCity === filter);
+
+  if (filtered.length === 0) {
+    main.innerHTML = `<div class="empty-state">No games match this filter.</div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  for (const g of filtered) {
+    if (!byDate[g.date]) byDate[g.date] = [];
+    byDate[g.date].push(g);
+  }
+
+  let html = `<div class="game-count">${filtered.length} GAME${filtered.length !== 1 ? 'S' : ''} · ${Object.keys(byDate).length} SAT${Object.keys(byDate).length !== 1 ? 'URDAYS' : 'URDAY'}</div>`;
+
+  for (const [date, games] of Object.entries(byDate)) {
+    html += `<div class="date-divider"><span>SAT</span>${formatShortDate(date)}</div>`;
+    for (const g of games) html += g.html;
+  }
+
+  main.innerHTML = html;
+}
+
+function buildFilterChips(cities) {
+  const bar = document.getElementById('filterBar');
+  // Clear existing non-all chips
+  [...bar.children].forEach(c => { if (!c.classList.contains('all')) c.remove(); });
+
+  const sorted = [...cities].sort();
+  for (const city of sorted) {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.city = city;
+    chip.textContent = city.toUpperCase();
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      render(city);
+    });
+    bar.appendChild(chip);
+  }
+
+  // All chip handler
+  bar.querySelector('.chip.all').addEventListener('click', function() {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+    render('ALL');
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const dot = document.getElementById('statusDot');
+  try {
+    const games = await fetchSaturdayGames();
+    dot.className = 'status-dot ready';
+
+    if (games.length === 0) {
+      document.getElementById('main').innerHTML = `<div class="empty-state">No remaining Saturday games found.</div>`;
+      return;
+    }
+
+    // Build cards
+    const cities = new Set();
+    allGames = [];
+
+    for (const { date, game } of games) {
+      const result = buildCard(date, game);
+      if (!result) continue;
+      cities.add(result.homeCity);
+      allGames.push({ date, homeCity: result.homeCity, html: result.html });
+    }
+
+    buildFilterChips(cities);
+    render('ALL');
+
+  } catch (err) {
+    dot.className = 'status-dot error';
+    document.getElementById('main').innerHTML = `<div class="error-state">⚠ Failed to load schedule.<br>${err.message}</div>`;
+    console.error(err);
+  }
+}
+
+init();
+</script>
+
 </body>
 </html>
