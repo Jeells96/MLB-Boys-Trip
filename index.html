@@ -264,7 +264,8 @@ color: var(–muted);
 background: transparent;
 border: none;
 border-bottom: 1px solid var(–border);
-color: var(–text);
+color: #e6edf3 !important;
+-webkit-text-fill-color: #e6edf3 !important;
 font-family: ‘DM Mono’, monospace;
 font-size: 10px;
 font-weight: 500;
@@ -272,9 +273,10 @@ width: 100%;
 outline: none;
 padding: 1px 2px;
 transition: border-color 0.12s;
+opacity: 1;
 }
 .p-input:focus { border-bottom-color: var(–accent); }
-.p-input::placeholder { color: #2a3140; }
+.p-input::placeholder { color: #3a4150; -webkit-text-fill-color: #3a4150; }
 
 /* States */
 .loading-state, .empty-state, .error-state {
@@ -694,16 +696,16 @@ async function init() {
       return;
     }
 
-    const cities = new Set();
+    const codes = new Set();
     allGames = [];
     for (const {date, game} of games) {
       const result = buildCard(date, game);
       if (!result) continue;
-      cities.add(result.homeCity);
+      codes.add(result.homeCode);
       allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, html: result.html });
     }
 
-    buildFilterChips(cities);
+    buildFilterChips(codes);
     render();
   } catch(err) {
     dot.className = 'status-dot error';
