@@ -645,15 +645,21 @@ function buildFilterChips(cities) {
   div.className = 'divider-pill';
   bar.appendChild(div);
 
-  const sorted = [...cities].sort();
+  // Build city→code map from allGames
+  const cityToCode = {};
+  for (const g of allGames) cityToCode[g.homeCity] = g.homeCode;
+
+  // Sort by team code (alphabetical)
+  const sorted = [...cities].sort((a, b) => (cityToCode[a]||a).localeCompare(cityToCode[b]||b));
+
   for (const city of sorted) {
+    const code = cityToCode[city] || city.slice(0,3).toUpperCase();
     const chip = document.createElement('div');
     chip.className = 'chip';
     chip.dataset.city = city;
-    chip.textContent = city.length > 8 ? city.slice(0,8) : city.toUpperCase();
+    chip.textContent = code;
     chip.title = city;
     chip.addEventListener('click', () => {
-      // Toggle this city
       if (selectedCities.has(city)) {
         selectedCities.delete(city);
         chip.classList.remove('active');
