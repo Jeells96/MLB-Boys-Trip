@@ -264,7 +264,7 @@ color: var(–muted);
 background: transparent;
 border: none;
 border-bottom: 1px solid var(–border);
-color: var(–accent);
+color: var(–text);
 font-family: ‘DM Mono’, monospace;
 font-size: 10px;
 font-weight: 500;
@@ -394,7 +394,6 @@ border-radius: 8px;
     </div>
     <div class="status-dot loading" id="statusDot"></div>
   </div>
-  <div class="filter-hint">FILTER BY CITY · <em>TAP MULTIPLE TO COMBINE</em></div>
   <div class="filter-wrap">
     <div class="filter-bar" id="filterBar">
       <div class="chip all active" id="allChip">All</div>
@@ -601,7 +600,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, html };
+  return { homeCity, homeCode, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -695,7 +694,7 @@ async function init() {
       const result = buildCard(date, game);
       if (!result) continue;
       cities.add(result.homeCity);
-      allGames.push({ date, homeCity: result.homeCity, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, html: result.html });
     }
 
     buildFilterChips(cities);
