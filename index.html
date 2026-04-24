@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MLB Saturday • PDX Flights</title>
+    <title>MLB Saturday • PDX Overview</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
@@ -11,6 +11,7 @@
         .title-font { font-family: 'Space Grotesk', sans-serif; }
         .game-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .game-card:hover { transform: translateY(-2px); }
+        .date-header { font-size: 1.75rem; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
@@ -19,37 +20,27 @@
             <div class="flex items-center gap-x-3">
                 <div class="w-9 h-9 bg-[#d93b2e] rounded-2xl flex items-center justify-center text-white text-2xl">⚾</div>
                 <h1 class="title-font text-3xl tracking-tighter">MLB SATURDAY • PDX</h1>
-                <span class="px-3 py-1 text-xs font-medium bg-emerald-400 text-emerald-950 rounded-3xl">LIVE</span>
+                <span class="px-3 py-1 text-xs font-medium bg-emerald-400 text-emerald-950 rounded-3xl">LIVE • NEXT 5 WEEKS</span>
             </div>
-            <div class="flex items-center gap-x-8 text-sm">
-                <div onclick="refreshAll()" class="flex items-center gap-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-3xl cursor-pointer">
-                    <span class="text-sm">Refresh schedule</span>
-                </div>
-                <div class="text-zinc-400 text-xs flex items-center gap-x-2">
-                    <span id="last-updated">just now</span>
-                    <span class="text-emerald-400">●</span>
-                    <span>Real prices via Google & Expedia</span>
-                </div>
+            <div onclick="refreshAll()" class="flex items-center gap-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-3xl cursor-pointer text-sm">
+                Refresh all weeks
+            </div>
+            <div class="text-zinc-400 text-xs flex items-center gap-x-2">
+                <span id="last-updated">just now</span>
+                <span class="text-emerald-400">●</span>
+                <span>Real prices via Google &amp; Expedia</span>
             </div>
         </div>
     </header>
 
     <div class="max-w-screen-2xl mx-auto px-8 py-8">
-        <div class="flex justify-between items-end mb-8">
-            <div>
-                <h2 class="title-font text-5xl tracking-tighter">Saturday games from PDX</h2>
-                <p class="text-zinc-400">Round-trip • Arrive 3h before • Depart 3h after • Same-day return preferred</p>
-            </div>
-            <div class="bg-zinc-900 rounded-3xl px-6 py-4">
-                <input type="date" id="selected-date" class="bg-transparent text-2xl font-medium focus:outline-none">
-                <button onclick="loadGames()" class="ml-4 text-sm px-5 py-2 bg-white text-zinc-950 rounded-3xl">Load</button>
-            </div>
-        </div>
+        <h2 class="title-font text-5xl tracking-tighter mb-2">Upcoming Saturdays from PDX</h2>
+        <p class="text-zinc-400 mb-8">Round-trip • Arrive 3h before • Depart 3h after • Same-day return preferred • Rough flight estimates included</p>
 
-        <div id="games-container" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+        <div id="saturdays-container" class="space-y-16"></div>
 
-        <div id="empty-state" class="hidden text-center py-12">
-            <p class="text-xl text-zinc-400">No games this Saturday.</p>
+        <div id="empty-state" class="hidden text-center py-12 text-xl text-zinc-400">
+            No MLB games in the next 5 Saturdays (off-season or all-star break).
         </div>
     </div>
 
@@ -72,6 +63,15 @@
             "San Diego Padres": {code: "SAN", city: "San Diego"}, "San Francisco Giants": {code: "SFO", city: "San Francisco"}
         };
 
+        const PDX_FLIGHT_DURATIONS = {
+            "BWI": 5.5, "BOS": 5.5, "JFK": 5.5, "TPA": 6, "YYZ": 5,
+            "ORD": 4, "CLE": 5, "DTW": 4.5, "MCI": 3.5, "MSP": 3.5,
+            "IAH": 4, "SNA": 2.5, "OAK": 1.5, "SEA": 1, "DFW": 4,
+            "ATL": 5, "MIA": 6, "PHL": 5.5, "DCA": 5.5, "CVG": 4.5,
+            "MKE": 4, "PIT": 5, "STL": 4, "PHX": 2.5, "DEN": 2.5,
+            "LAX": 2.5, "SAN": 2.5, "SFO": 1.5
+        };
+
         async function fetchMLBGames(dateStr) {
             try {
                 const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`);
@@ -88,14 +88,43 @@
             return new Date(dateUTC).toLocaleString('en-US', {timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit', hour12: true}) + " PT";
         }
 
-        function renderGames(games) {
-            const container = document.getElementById('games-container');
-            container.innerHTML = '';
+        function getNextSaturdays(count) {
+            const dates = [];
+            let current = new Date();
+            if (current.getDay() === 6) current.setDate(current.getDate() + 1); // if today is Saturday, start next
+            const daysToSat = (6 - current.getDay() + 7) % 7;
+            current.setDate(current.getDate() + daysToSat);
+            for (let i = 0; i < count; i++) {
+                const yyyy = current.getFullYear();
+                const mm = String(current.getMonth() + 1).padStart(2, '0');
+                const dd = String(current.getDate()).padStart(2, '0');
+                dates.push({display: current.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}), value: `${yyyy}-${mm}-${dd}`});
+                current.setDate(current.getDate() + 7);
+            }
+            return dates;
+        }
+
+        function calculatePDXDeparture(gameStartUTC, durationHours) {
+            const arriveByUTC = new Date(gameStartUTC.getTime() - 3 * 3600000);
+            const airportBuffer = 3600000; // 1 hour
+            const depUTC = new Date(arriveByUTC.getTime() - (durationHours * 3600000) - airportBuffer);
+            return toPT(depUTC);
+        }
+
+        function renderSaturday(dateObj, games) {
+            const container = document.getElementById('saturdays-container');
+            const section = document.createElement('div');
+            section.innerHTML = `
+                <h2 class="date-header text-white mb-6">${dateObj.display}</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12" id="games-${dateObj.value}"></div>
+            `;
+            container.appendChild(section);
+
+            const gamesContainer = document.getElementById(`games-${dateObj.value}`);
             if (games.length === 0) {
-                document.getElementById('empty-state').classList.remove('hidden');
+                gamesContainer.innerHTML = `<p class="text-zinc-400 col-span-full">No games this Saturday.</p>`;
                 return;
             }
-            document.getElementById('empty-state').classList.add('hidden');
 
             games.forEach(game => {
                 const homeTeam = game.teams.home.team.name;
@@ -103,15 +132,17 @@
                 const venue = game.venue.name;
                 const dest = TEAM_AIRPORT_MAP[homeTeam] || {code: 'XXX', city: 'City'};
                 const utcDate = game.gameDate;
+                const gameStartUTC = new Date(utcDate);
                 const gameET = toET(utcDate);
 
-                // Calculate buffers
-                const start = new Date(utcDate);
-                const arriveByPT = toPT(new Date(start.getTime() - 3*60*60*1000));
-                const gameEnd = new Date(start.getTime() + 3*60*60*1000); // assume 3h game
-                const departAfterPT = toPT(new Date(gameEnd.getTime() + 3*60*60*1000));
+                const duration = PDX_FLIGHT_DURATIONS[dest.code] || 4;
+                const arriveByPT = toPT(new Date(gameStartUTC.getTime() - 3*3600000));
+                const gameEnd = new Date(gameStartUTC.getTime() + 3*3600000);
+                const departAfterPT = toPT(new Date(gameEnd.getTime() + 3*3600000));
 
-                const gameDateStr = utcDate.split('T')[0]; // YYYY-MM-DD Saturday
+                const pdxLeavePT = calculatePDXDeparture(gameStartUTC, duration);
+
+                const gameDateStr = dateObj.value;
 
                 const googleLink = `https://www.google.com/travel/flights?q=Flights%20to%20${dest.code}%20from%20PDX%20on%20${gameDateStr}%20through%20${gameDateStr}`;
                 const expediaLink = `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from:PDX,to:${dest.code},departure:${gameDateStr}TANYT&leg2=from:${dest.code},to:PDX,departure:${gameDateStr}TANYT&mode=search`;
@@ -132,13 +163,14 @@
                     
                     <div class="text-xs text-zinc-400 space-y-1 mb-5">
                         <div>Arrive by: <span class="text-white">${arriveByPT}</span></div>
-                        <div>Depart after: <span class="text-white">${departAfterPT}</span></div>
-                        <div class="text-emerald-400">Preferred same-day return (Saturday night)</div>
+                        <div>Leave PDX by: <span class="text-white">${pdxLeavePT}</span> (~${duration}h flight)</div>
+                        <div>Leave ${dest.city} after: <span class="text-white">${departAfterPT}</span> (~${duration}h flight home)</div>
+                        <div class="text-emerald-400">Preferred same-day Saturday-night return</div>
                     </div>
 
                     <div class="flex gap-x-6 text-xs text-zinc-400 border-t border-zinc-800 pt-4">
-                        <a href="${googleLink}" target="_blank" class="hover:text-white underline">View real round-trip prices on Google Flights</a>
-                        <a href="${expediaLink}" target="_blank" class="hover:text-white underline">on Expedia</a>
+                        <a href="${googleLink}" target="_blank" class="hover:text-white underline">Google Flights</a>
+                        <a href="${expediaLink}" target="_blank" class="hover:text-white underline">Expedia</a>
                     </div>
 
                     <div class="mt-6 flex items-center text-sm">
@@ -148,7 +180,7 @@
                         <span class="saved-price ml-3 font-medium text-emerald-400 hidden"></span>
                     </div>
                 `;
-                container.appendChild(card);
+                gamesContainer.appendChild(card);
             });
         }
 
@@ -160,35 +192,23 @@
                 input.classList.add('hidden');
                 savedSpan.textContent = `$${price}`;
                 savedSpan.classList.remove('hidden');
-                // persist in localStorage if you want across refreshes
             }
         }
 
-        async function loadGames() {
-            const dateInput = document.getElementById('selected-date').value;
-            if (!dateInput) return;
-            const games = await fetchMLBGames(dateInput);
-            renderGames(games);
-            updateLastUpdated();
+        async function loadMultipleSaturdays() {
+            const container = document.getElementById('saturdays-container');
+            container.innerHTML = '';
+            const saturdays = getNextSaturdays(5);
+            const promises = saturdays.map(async (sat) => {
+                const games = await fetchMLBGames(sat.value);
+                renderSaturday(sat, games);
+            });
+            await Promise.all(promises);
+            if (container.innerHTML === '') document.getElementById('empty-state').classList.remove('hidden');
         }
 
         async function refreshAll() {
-            const dateInput = document.getElementById('selected-date').value;
-            if (dateInput) {
-                const games = await fetchMLBGames(dateInput);
-                renderGames(games);
-            }
-        }
-
-        function setNextSaturday() {
-            const now = new Date();
-            const daysToSat = (6 - now.getDay() + 7) % 7 || 7;
-            const sat = new Date(now);
-            sat.setDate(now.getDate() + daysToSat);
-            const yyyy = sat.getFullYear();
-            const mm = String(sat.getMonth() + 1).padStart(2, '0');
-            const dd = String(sat.getDate()).padStart(2, '0');
-            document.getElementById('selected-date').value = `${yyyy}-${mm}-${dd}`;
+            await loadMultipleSaturdays();
         }
 
         function updateLastUpdated() {
@@ -198,8 +218,7 @@
         }
 
         window.onload = () => {
-            setNextSaturday();
-            setTimeout(loadGames, 400);
+            loadMultipleSaturdays();
             setInterval(updateLastUpdated, 60000);
         };
     </script>
