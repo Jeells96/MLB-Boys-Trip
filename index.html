@@ -376,16 +376,34 @@ function expediaURL(destIATA, dateStr) {
 }
 
 // ─── FETCH MLB SCHEDULE ───────────────────────────────────────────────────────
+async function getSeasonEndDate(year) {
+  // Query the MLB season endpoint to get the official regular season end date
+  try {
+    const resp = await fetch(`https://statsapi.mlb.com/api/v1/seasons/${year}?sportId=1`);
+    const data = await resp.json();
+    const season = data.seasons?.[0];
+    if (season?.regularSeasonEndDate) return season.regularSeasonEndDate;
+  } catch(e) {}
+  // Fallback: last Sunday of September (MLB always ends late Sep)
+  // Find the last Sunday on or before Sep 30
+  const d = new Date(`${year}-09-30T12:00:00Z`);
+  while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
 async function fetchSaturdayGames() {
   const today = new Date();
+  const year = today.getFullYear();
   const todayStr = today.toISOString().split('T')[0];
-  const endDate = '2025-09-28'; // MLB regular season end
+
+  // Dynamically fetch the current season's end date — works any year
+  const endDate = await getSeasonEndDate(year);
 
   // Get all Saturdays from today to end of season
   const saturdays = [];
   let cur = new Date(todayStr + 'T12:00:00Z');
   const end = new Date(endDate + 'T12:00:00Z');
-  // Start from next Saturday if today isn't Saturday
+  // Advance to next Saturday if today isn't one
   while (cur.getUTCDay() !== 6) cur = addHours(cur, 24);
   while (cur <= end) {
     saturdays.push(cur.toISOString().split('T')[0]);
@@ -395,7 +413,7 @@ async function fetchSaturdayGames() {
   if (saturdays.length === 0) return [];
 
   const startDate = saturdays[0];
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate=${startDate}&endDate=${endDate}&gameType=R&hydrate=team`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}&startDate=${startDate}&endDate=${endDate}&gameType=R&hydrate=team`;
 
   const resp = await fetch(url);
   const data = await resp.json();
