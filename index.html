@@ -383,6 +383,33 @@ padding: 8px;
 border: 1px solid var(–border);
 border-radius: 8px;
 }
+
+/* ── DAY SELECTOR ── */
+.day-bar {
+display: flex;
+gap: 4px;
+margin-bottom: 8px;
+}
+.day-chip {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 3px 7px;
+border-radius: 20px;
+cursor: pointer;
+user-select: none;
+flex-shrink: 0;
+transition: all 0.12s;
+}
+.day-chip:active { transform: scale(0.94); }
+.day-chip.active {
+background: var(–accent2);
+border-color: var(–accent2);
+color: #000;
+font-weight: 600;
+}
 </style>
 
 </head>
@@ -392,9 +419,18 @@ border-radius: 8px;
   <div class="header-top">
     <div>
       <div class="logo">⚾ <span>PDX</span> → MLB</div>
-      <div class="subtitle">SATURDAY GAMES · ROUND TRIP FROM PORTLAND</div>
+      <div class="subtitle">MLB TRIP PLANNER · ROUND TRIP FROM PDX</div>
     </div>
     <div class="status-dot loading" id="statusDot"></div>
+  </div>
+  <div class="day-bar" id="dayBar">
+    <div class="day-chip active" data-dow="0">SUN</div>
+    <div class="day-chip active" data-dow="1">MON</div>
+    <div class="day-chip active" data-dow="2">TUE</div>
+    <div class="day-chip active" data-dow="3">WED</div>
+    <div class="day-chip active" data-dow="4">THU</div>
+    <div class="day-chip active" data-dow="5">FRI</div>
+    <div class="day-chip active" data-dow="6">SAT</div>
   </div>
   <div class="filter-wrap">
     <div class="filter-bar" id="filterBar">
@@ -511,29 +547,31 @@ async function getSeasonEndDate(year) {
 }
 
 // ─── FETCH GAMES ──────────────────────────────────────────────────────────────
-async function fetchSaturdayGames() {
+let activeDays = new Set([0,1,2,3,4,5,6]); // all days default, UI will toggle SAT-only highlight
+
+async function fetchGamesByDays(dowSet) {
   const today = new Date();
   const year  = today.getFullYear();
   const todayStr = today.toISOString().split('T')[0];
   const endDate  = await getSeasonEndDate(year);
 
-  const saturdays = [];
+  // Collect all matching dates from today to end of season
+  const matchDates = [];
   let cur = new Date(todayStr + 'T12:00:00Z');
   const end = new Date(endDate + 'T12:00:00Z');
-  while (cur.getUTCDay() !== 6) cur = addHours(cur, 24);
   while (cur <= end) {
-    saturdays.push(cur.toISOString().split('T')[0]);
-    cur = addHours(cur, 7*24);
+    if (dowSet.has(cur.getUTCDay())) matchDates.push(cur.toISOString().split('T')[0]);
+    cur = addHours(cur, 24);
   }
-  if (!saturdays.length) return [];
+  if (!matchDates.length) return [];
 
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}&startDate=${saturdays[0]}&endDate=${endDate}&gameType=R&hydrate=team`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}&startDate=${matchDates[0]}&endDate=${endDate}&gameType=R&hydrate=team`;
   const resp = await fetch(url);
   const data = await resp.json();
-  const satSet = new Set(saturdays);
+  const dateSet = new Set(matchDates);
   const games = [];
   for (const dateObj of (data.dates || [])) {
-    if (!satSet.has(dateObj.date)) continue;
+    if (!dateSet.has(dateObj.date)) continue;
     for (const game of dateObj.games) {
       if (game.gameType !== 'R') continue;
       if (game.status?.abstractGameState === 'Final') continue;
@@ -609,15 +647,15 @@ function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){
 
 // ─── FILTER STATE (multi-select by homeCity) ──────────────────────────────────
 let allGames = [];
-let selectedCities = new Set();
+let selectedCodes = new Set();
 
 function render() {
   const main = document.getElementById('main');
-  const isAll = selectedCities.size === 0;
-  const filtered = isAll ? allGames : allGames.filter(g => selectedCities.has(g.homeCity));
+  const isAll = selectedCodes.size === 0;
+  const filtered = isAll ? allGames : allGames.filter(g => selectedCodes.has(g.homeCode));
 
   if (!filtered.length) {
-    main.innerHTML = `<div class="empty-state">No games match the selected cities.</div>`;
+    main.innerHTML = `<div class="empty-state">No games match the selected teams.</div>`;
     return;
   }
 
@@ -636,48 +674,38 @@ function render() {
   main.innerHTML = html;
 }
 
-function buildFilterChips(cities) {
+function buildFilterChips(codes) {
   const bar = document.getElementById('filterBar');
   const allChip = document.getElementById('allChip');
 
-  // Remove any previous city chips + divider
   [...bar.querySelectorAll('.chip:not(.all), .divider-pill')].forEach(el => el.remove());
 
   const div = document.createElement('div');
   div.className = 'divider-pill';
   bar.appendChild(div);
 
-  // Build city→code map from allGames
-  const cityToCode = {};
-  for (const g of allGames) cityToCode[g.homeCity] = g.homeCode;
-
-  // Sort by team code (alphabetical)
-  const sorted = [...cities].sort((a, b) => (cityToCode[a]||a).localeCompare(cityToCode[b]||b));
-
-  for (const city of sorted) {
-    const code = cityToCode[city] || city.slice(0,3).toUpperCase();
+  const sorted = [...codes].sort();
+  for (const code of sorted) {
     const chip = document.createElement('div');
     chip.className = 'chip';
-    chip.dataset.city = city;
     chip.textContent = code;
-    chip.title = city;
     chip.addEventListener('click', () => {
-      if (selectedCities.has(city)) {
-        selectedCities.delete(city);
+      if (selectedCodes.has(code)) {
+        selectedCodes.delete(code);
         chip.classList.remove('active');
       } else {
-        selectedCities.add(city);
+        selectedCodes.add(code);
         chip.classList.add('active');
         allChip.classList.remove('active');
       }
-      if (selectedCities.size === 0) allChip.classList.add('active');
+      if (selectedCodes.size === 0) allChip.classList.add('active');
       render();
     });
     bar.appendChild(chip);
   }
 
   allChip.addEventListener('click', () => {
-    selectedCities.clear();
+    selectedCodes.clear();
     document.querySelectorAll('#filterBar .chip').forEach(c => c.classList.remove('active'));
     allChip.classList.add('active');
     render();
@@ -685,10 +713,65 @@ function buildFilterChips(cities) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+function initDayChips() {
+  // Default: only Saturday active
+  activeDays = new Set([6]);
+  document.querySelectorAll('.day-chip').forEach(chip => {
+    const dow = parseInt(chip.dataset.dow);
+    if (dow === 6) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+    chip.addEventListener('click', () => {
+      if (activeDays.has(dow)) {
+        if (activeDays.size === 1) return; // keep at least one
+        activeDays.delete(dow);
+        chip.classList.remove('active');
+      } else {
+        activeDays.add(dow);
+        chip.classList.add('active');
+      }
+      reloadGames();
+    });
+  });
+}
+
+async function reloadGames() {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot loading';
+  document.getElementById('main').innerHTML = '<div class="loading-state">⚾ Loading games…</div>';
+  selectedCodes.clear();
+  document.querySelectorAll('#filterBar .chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('allChip').classList.add('active');
+  try {
+    const games = await fetchGamesByDays(activeDays);
+    dot.className = 'status-dot ready';
+    if (!games.length) {
+      document.getElementById('main').innerHTML = '<div class="empty-state">No upcoming games found for selected days.</div>';
+      return;
+    }
+    const codes = new Set();
+    allGames = [];
+    for (const {date, game} of games) {
+      const result = buildCard(date, game);
+      if (!result) continue;
+      codes.add(result.homeCode);
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, html: result.html });
+    }
+    buildFilterChips(codes);
+    render();
+  } catch(err) {
+    dot.className = 'status-dot error';
+    document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
+  }
+}
+
 async function init() {
+  initDayChips();
   const dot = document.getElementById('statusDot');
   try {
-    const games = await fetchSaturdayGames();
+    const games = await fetchGamesByDays(activeDays);
     dot.className = 'status-dot ready';
 
     if (!games.length) {
