@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLB Saturday • PDX Flights</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .title-font { font-family: 'Space Grotesk', sans-serif; }
+        .game-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .game-card:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-zinc-950 text-white">
+    <header class="border-b border-zinc-800 bg-black sticky top-0 z-50">
+        <div class="max-w-screen-2xl mx-auto px-8 py-5 flex items-center justify-between">
+            <div class="flex items-center gap-x-3">
+                <div class="w-9 h-9 bg-[#d93b2e] rounded-2xl flex items-center justify-center text-white text-2xl">⚾</div>
+                <h1 class="title-font text-3xl tracking-tighter">MLB SATURDAY • PDX</h1>
+                <span class="px-3 py-1 text-xs font-medium bg-emerald-400 text-emerald-950 rounded-3xl">LIVE</span>
+            </div>
+            <div class="flex items-center gap-x-8 text-sm">
+                <div onclick="refreshAll()" class="flex items-center gap-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-3xl cursor-pointer">
+                    <span class="text-sm">Refresh schedule</span>
+                </div>
+                <div class="text-zinc-400 text-xs flex items-center gap-x-2">
+                    <span id="last-updated">just now</span>
+                    <span class="text-emerald-400">●</span>
+                    <span>Real prices via Google & Expedia</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-screen-2xl mx-auto px-8 py-8">
+        <div class="flex justify-between items-end mb-8">
+            <div>
+                <h2 class="title-font text-5xl tracking-tighter">Saturday games from PDX</h2>
+                <p class="text-zinc-400">Round-trip • Arrive 3h before • Depart 3h after • Same-day return preferred</p>
+            </div>
+            <div class="bg-zinc-900 rounded-3xl px-6 py-4">
+                <input type="date" id="selected-date" class="bg-transparent text-2xl font-medium focus:outline-none">
+                <button onclick="loadGames()" class="ml-4 text-sm px-5 py-2 bg-white text-zinc-950 rounded-3xl">Load</button>
+            </div>
+        </div>
+
+        <div id="games-container" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+
+        <div id="empty-state" class="hidden text-center py-12">
+            <p class="text-xl text-zinc-400">No games this Saturday.</p>
+        </div>
+    </div>
+
+    <script>
+        const TEAM_AIRPORT_MAP = {
+            "Baltimore Orioles": {code: "BWI", city: "Baltimore"}, "Boston Red Sox": {code: "BOS", city: "Boston"},
+            "New York Yankees": {code: "JFK", city: "New York"}, "Tampa Bay Rays": {code: "TPA", city: "Tampa"},
+            "Toronto Blue Jays": {code: "YYZ", city: "Toronto"}, "Chicago White Sox": {code: "ORD", city: "Chicago"},
+            "Cleveland Guardians": {code: "CLE", city: "Cleveland"}, "Detroit Tigers": {code: "DTW", city: "Detroit"},
+            "Kansas City Royals": {code: "MCI", city: "Kansas City"}, "Minnesota Twins": {code: "MSP", city: "Minneapolis"},
+            "Houston Astros": {code: "IAH", city: "Houston"}, "Los Angeles Angels": {code: "SNA", city: "Anaheim"},
+            "Oakland Athletics": {code: "OAK", city: "Oakland"}, "Seattle Mariners": {code: "SEA", city: "Seattle"},
+            "Texas Rangers": {code: "DFW", city: "Arlington"}, "Atlanta Braves": {code: "ATL", city: "Atlanta"},
+            "Miami Marlins": {code: "MIA", city: "Miami"}, "New York Mets": {code: "JFK", city: "New York"},
+            "Philadelphia Phillies": {code: "PHL", city: "Philadelphia"}, "Washington Nationals": {code: "DCA", city: "Washington"},
+            "Chicago Cubs": {code: "ORD", city: "Chicago"}, "Cincinnati Reds": {code: "CVG", city: "Cincinnati"},
+            "Milwaukee Brewers": {code: "MKE", city: "Milwaukee"}, "Pittsburgh Pirates": {code: "PIT", city: "Pittsburgh"},
+            "St. Louis Cardinals": {code: "STL", city: "St. Louis"}, "Arizona Diamondbacks": {code: "PHX", city: "Phoenix"},
+            "Colorado Rockies": {code: "DEN", city: "Denver"}, "Los Angeles Dodgers": {code: "LAX", city: "Los Angeles"},
+            "San Diego Padres": {code: "SAN", city: "San Diego"}, "San Francisco Giants": {code: "SFO", city: "San Francisco"}
+        };
+
+        async function fetchMLBGames(dateStr) {
+            try {
+                const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`);
+                const data = await res.json();
+                return data.dates?.[0]?.games || [];
+            } catch { return []; }
+        }
+
+        function toET(dateUTC) {
+            return new Date(dateUTC).toLocaleString('en-US', {timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true}) + " ET";
+        }
+
+        function toPT(dateUTC) {
+            return new Date(dateUTC).toLocaleString('en-US', {timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit', hour12: true}) + " PT";
+        }
+
+        function renderGames(games) {
+            const container = document.getElementById('games-container');
+            container.innerHTML = '';
+            if (games.length === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('empty-state').classList.add('hidden');
+
+            games.forEach(game => {
+                const homeTeam = game.teams.home.team.name;
+                const awayTeam = game.teams.away.team.name;
+                const venue = game.venue.name;
+                const dest = TEAM_AIRPORT_MAP[homeTeam] || {code: 'XXX', city: 'City'};
+                const utcDate = game.gameDate;
+                const gameET = toET(utcDate);
+
+                // Calculate buffers
+                const start = new Date(utcDate);
+                const arriveByPT = toPT(new Date(start.getTime() - 3*60*60*1000));
+                const gameEnd = new Date(start.getTime() + 3*60*60*1000); // assume 3h game
+                const departAfterPT = toPT(new Date(gameEnd.getTime() + 3*60*60*1000));
+
+                const gameDateStr = utcDate.split('T')[0]; // YYYY-MM-DD Saturday
+
+                const googleLink = `https://www.google.com/travel/flights?q=Flights%20to%20${dest.code}%20from%20PDX%20on%20${gameDateStr}%20through%20${gameDateStr}`;
+                const expediaLink = `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from:PDX,to:${dest.code},departure:${gameDateStr}TANYT&leg2=from:${dest.code},to:PDX,departure:${gameDateStr}TANYT&mode=search`;
+
+                const card = document.createElement('div');
+                card.className = 'game-card bg-zinc-900 rounded-3xl p-6 border border-zinc-800';
+                card.innerHTML = `
+                    <div class="flex justify-between mb-4">
+                        <div>
+                            <div class="text-xl">${awayTeam} @ ${homeTeam}</div>
+                            <div class="text-zinc-400 text-sm">${venue}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-semibold">${gameET}</div>
+                            <div class="text-xs text-zinc-400">${dest.city}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-xs text-zinc-400 space-y-1 mb-5">
+                        <div>Arrive by: <span class="text-white">${arriveByPT}</span></div>
+                        <div>Depart after: <span class="text-white">${departAfterPT}</span></div>
+                        <div class="text-emerald-400">Preferred same-day return (Saturday night)</div>
+                    </div>
+
+                    <div class="flex gap-x-6 text-xs text-zinc-400 border-t border-zinc-800 pt-4">
+                        <a href="${googleLink}" target="_blank" class="hover:text-white underline">View real round-trip prices on Google Flights</a>
+                        <a href="${expediaLink}" target="_blank" class="hover:text-white underline">on Expedia</a>
+                    </div>
+
+                    <div class="mt-6 flex items-center text-sm">
+                        <span class="text-zinc-400">price found: $</span>
+                        <input type="text" class="price-input bg-transparent border-b border-zinc-700 focus:border-white w-20 text-center mx-2 outline-none" placeholder="___">
+                        <span onclick="savePrice(this)" class="text-emerald-400 cursor-pointer text-xs underline">save</span>
+                        <span class="saved-price ml-3 font-medium text-emerald-400 hidden"></span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function savePrice(el) {
+            const input = el.parentElement.querySelector('.price-input');
+            const savedSpan = el.parentElement.querySelector('.saved-price');
+            const price = input.value.trim();
+            if (price) {
+                input.classList.add('hidden');
+                savedSpan.textContent = `$${price}`;
+                savedSpan.classList.remove('hidden');
+                // persist in localStorage if you want across refreshes
+            }
+        }
+
+        async function loadGames() {
+            const dateInput = document.getElementById('selected-date').value;
+            if (!dateInput) return;
+            const games = await fetchMLBGames(dateInput);
+            renderGames(games);
+            updateLastUpdated();
+        }
+
+        async function refreshAll() {
+            const dateInput = document.getElementById('selected-date').value;
+            if (dateInput) {
+                const games = await fetchMLBGames(dateInput);
+                renderGames(games);
+            }
+        }
+
+        function setNextSaturday() {
+            const now = new Date();
+            const daysToSat = (6 - now.getDay() + 7) % 7 || 7;
+            const sat = new Date(now);
+            sat.setDate(now.getDate() + daysToSat);
+            const yyyy = sat.getFullYear();
+            const mm = String(sat.getMonth() + 1).padStart(2, '0');
+            const dd = String(sat.getDate()).padStart(2, '0');
+            document.getElementById('selected-date').value = `${yyyy}-${mm}-${dd}`;
+        }
+
+        function updateLastUpdated() {
+            const el = document.getElementById('last-updated');
+            const now = new Date();
+            el.textContent = now.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+        }
+
+        window.onload = () => {
+            setNextSaturday();
+            setTimeout(loadGames, 400);
+            setInterval(updateLastUpdated, 60000);
+        };
+    </script>
+</body>
+</html>
