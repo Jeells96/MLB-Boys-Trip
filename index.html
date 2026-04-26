@@ -545,6 +545,166 @@ cursor: pointer;
 transition: opacity 0.12s;
 }
 .fp-clear:active { opacity: 0.7; }
+
+/* ── TAB BAR ── */
+.tab-bar {
+display: flex;
+border-bottom: 1px solid var(–border);
+margin-bottom: 0;
+}
+.tab {
+flex: 1;
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+letter-spacing: 0.5px;
+color: var(–muted);
+padding: 8px 4px;
+cursor: pointer;
+border-bottom: 2px solid transparent;
+transition: all 0.15s;
+user-select: none;
+}
+.tab.active {
+color: var(–accent);
+border-bottom-color: var(–accent);
+}
+
+/* ── FAVORITES ── */
+.fav-empty {
+text-align: center;
+padding: 50px 20px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+line-height: 1.8;
+}
+.fav-card {
+background: var(–card);
+border: 1px solid var(–border);
+border-radius: 10px;
+margin-bottom: 10px;
+overflow: hidden;
+}
+.fav-head {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 10px 12px 8px;
+}
+.fav-matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 22px;
+letter-spacing: 1.5px;
+color: var(–text);
+}
+.fav-date {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-top: 2px;
+}
+.fav-remove {
+background: none;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–red);
+font-size: 14px;
+padding: 4px 8px;
+cursor: pointer;
+flex-shrink: 0;
+}
+.fav-timing {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 6px;
+padding: 8px 12px;
+border-top: 1px solid var(–border);
+background: #1c2128;
+}
+.fav-t-item { display: flex; flex-direction: column; gap: 2px; }
+.fav-t-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.3px;
+}
+.fav-t-val {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 500;
+}
+.fav-t-val.y { color: var(–accent); }
+.fav-t-val.g { color: var(–green); }
+.fav-t-val.r { color: var(–red); }
+.fav-footer {
+display: flex;
+align-items: center;
+gap: 8px;
+padding: 7px 12px 8px;
+border-top: 1px solid var(–border);
+}
+.fav-expedia {
+display: inline-flex;
+align-items: center;
+background: var(–accent);
+color: #000;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 700;
+padding: 5px 10px;
+border-radius: 6px;
+text-decoration: none;
+white-space: nowrap;
+}
+.fav-price-wrap {
+display: flex;
+align-items: center;
+gap: 4px;
+flex: 1;
+}
+.fav-price-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+}
+.fav-price-input {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 4px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+font-weight: 500;
+width: 80px;
+outline: none;
+padding: 3px 6px;
+}
+.fav-price-input:focus { border-color: var(–accent); }
+.fav-price-input::placeholder { color: #3a4150; }
+
+/* Fav button in modal */
+.modal-fav-btn {
+display: block;
+width: 100%;
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+padding: 9px;
+border-radius: 10px;
+border: 1px solid var(–border);
+background: var(–chip);
+color: var(–muted);
+cursor: pointer;
+margin-bottom: 8px;
+transition: all 0.15s;
+}
+.modal-fav-btn.saved {
+background: #2a1a3a;
+border-color: #c084fc;
+color: #c084fc;
+}
 </style>
 
 </head>
@@ -570,12 +730,18 @@ transition: opacity 0.12s;
     <div class="day-chip active" data-dow="5">FRI</div>
     <div class="day-chip active" data-dow="6">SAT</div>
   </div>
+  <div class="tab-bar">
+    <div class="tab active" id="tabGames" onclick="switchTab('games')">⚾ GAMES</div>
+    <div class="tab" id="tabFavs" onclick="switchTab('favs')">⭐ FAVORITES</div>
+  </div>
+  <div id="headerFilters">
   <div class="filter-wrap">
     <div class="filter-bar" id="filterBar">
       <div class="chip all active" id="allChip">All</div>
       <div class="divider-pill"></div>
     </div>
   </div>
+  </div><!-- /headerFilters -->
 </div>
 
 <main id="main">
@@ -594,6 +760,7 @@ transition: opacity 0.12s;
       ✈ SEARCH FLIGHTS ON EXPEDIA ↗
     </a>
     <div class="modal-link-note">PDX → destination · Round-trip · Outbound &amp; return same Saturday</div>
+    <div class="modal-fav-btn" id="mFavBtn" onclick="toggleFavorite()">⭐ SAVE TO FAVORITES</div>
     <div class="modal-close" onclick="closeModal()">CLOSE</div>
   </div>
 </div>
@@ -654,15 +821,17 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl) {
+function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId) {
+  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl };
   document.getElementById('mMatchup').textContent = matchup;
-  document.getElementById('mSub').textContent = `SAT · ${dateLabel} · ✈ PDX ${flightStr}`;
+  document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
   document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
     <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${leavePDX} PT</div></div>
     <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${arriveby}</div></div>
     <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${leaveCity}</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${arrivePDX} PT</div></div>
   `;
+  updateFavBtn(isFavorited(gameId));
   document.getElementById('modalOverlay').classList.add('open');
 }
 function closeModal() {
@@ -757,7 +926,7 @@ function buildCard(dateStr, game) {
   // Inline card (small)
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay}</div>
@@ -954,6 +1123,107 @@ function displayTimeToMinutes(str) {
   return h * 60 + m;
 }
 
+
+// ─── FAVORITES ────────────────────────────────────────────────────────────────
+let currentModalGame = null; // full game data object for the open modal
+
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('mlb_favs') || '[]'); } catch(e) { return []; }
+}
+function saveFavorites(favs) {
+  try { localStorage.setItem('mlb_favs', JSON.stringify(favs)); } catch(e) {}
+}
+function isFavorited(gameId) {
+  return getFavorites().some(f => f.gameId === gameId);
+}
+function toggleFavorite() {
+  if (!currentModalGame) return;
+  const favs = getFavorites();
+  const idx = favs.findIndex(f => f.gameId === currentModalGame.gameId);
+  if (idx >= 0) {
+    favs.splice(idx, 1);
+    saveFavorites(favs);
+    updateFavBtn(false);
+  } else {
+    favs.push(currentModalGame);
+    saveFavorites(favs);
+    updateFavBtn(true);
+  }
+  if (document.getElementById('tabFavs').classList.contains('active')) renderFavs();
+}
+function updateFavBtn(saved) {
+  const btn = document.getElementById('mFavBtn');
+  if (saved) {
+    btn.textContent = '⭐ SAVED — TAP TO REMOVE';
+    btn.classList.add('saved');
+  } else {
+    btn.textContent = '⭐ SAVE TO FAVORITES';
+    btn.classList.remove('saved');
+  }
+}
+
+function renderFavs() {
+  const favs = getFavorites();
+  const el = document.getElementById('favsContent');
+  if (!favs.length) {
+    el.innerHTML = '<div class="fav-empty">No favorites yet.<br>Open any game card and tap<br>⭐ Save to Favorites.</div>';
+    return;
+  }
+  el.innerHTML = favs.map(f => {
+    const inputId = 'fav-price-' + f.gameId;
+    const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
+    return `
+    <div class="fav-card">
+      <div class="fav-head">
+        <div>
+          <div class="fav-matchup">${f.matchup}</div>
+          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}</div>
+        </div>
+        <button class="fav-remove" onclick="removeFav('${f.gameId}')">✕</button>
+      </div>
+      <div class="fav-timing">
+        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${f.leavePDX} PT</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${f.arriveby}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${f.leaveCity}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${f.arrivePDX} PT</div></div>
+      </div>
+      <div class="fav-footer">
+        <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
+        <div class="fav-price-wrap">
+          <span class="fav-price-label">$</span>
+          <input class="fav-price-input" type="text" inputmode="decimal" placeholder="price"
+            value="${saved}"
+            onchange="savePrice('price-${f.gameId}', this.value)">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function removeFav(gameId) {
+  const favs = getFavorites().filter(f => f.gameId !== gameId);
+  saveFavorites(favs);
+  renderFavs();
+  // Update fav count badge
+  updateFavTab();
+}
+
+function updateFavTab() {
+  const count = getFavorites().length;
+  document.getElementById('tabFavs').textContent = count > 0 ? `⭐ FAVORITES (${count})` : '⭐ FAVORITES';
+}
+
+// ── TAB SWITCHING ──
+function switchTab(tab) {
+  const isGames = tab === 'games';
+  document.getElementById('tabGames').classList.toggle('active', isGames);
+  document.getElementById('tabFavs').classList.toggle('active', !isGames);
+  document.getElementById('main').style.display = isGames ? '' : 'none';
+  document.getElementById('favsView').style.display = isGames ? 'none' : '';
+  document.getElementById('headerFilters').style.display = isGames ? '' : 'none';
+  if (!isGames) renderFavs();
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 function initDayChips() {
   // Default: only Saturday active
@@ -1032,6 +1302,7 @@ async function init() {
 
     buildFilterChips(codes);
     render();
+    updateFavTab();
   } catch(err) {
     dot.className = 'status-dot error';
     document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
@@ -1088,6 +1359,12 @@ init();
 ```
 
   </div>
+</div>
+
+<!-- Favorites View -->
+
+<div id="favsView" style="display:none; padding:10px 10px 40px;">
+  <div id="favsContent"></div>
 </div>
 </body>
 </html>
