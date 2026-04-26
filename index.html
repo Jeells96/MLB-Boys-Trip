@@ -1139,6 +1139,12 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
+function cardClicked(el) {
+  const data = cardStore[el.dataset.cardId];
+  if (!data) return;
+  openModal(data.matchupFull, data.dateLabel, data.leavePDX, data.arriveby, data.leaveCity, data.arrivePDX, data.flightStr, data.expUrl, data.gameId);
+}
+
 function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId) {
   currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl };
   document.getElementById('mMatchup').textContent = matchup;
@@ -1242,10 +1248,12 @@ function buildCard(dateStr, game) {
   let savedPrice  = '';
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
-  // Inline card (small)
+  // Store card data for safe lookup on click
+  const cardId = 'card-' + game.gamePk;
+  cardStore[cardId] = { matchupFull, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId: String(game.gamePk) };
+
   const html = `
-    <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}')">
+    <div class="game-card" data-card-id="${cardId}" onclick="cardClicked(this)">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay}</div>
@@ -1253,7 +1261,7 @@ function buildCard(dateStr, game) {
       <div class="card-flight">
         <span class="flight-badge">✈${flightStr}</span>
         <a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener"
-          onclick="event.stopPropagation()">$$</a>
+          onclick="event.stopPropagation()">FLIGHTS ↗</a>
       </div>
       <div class="card-timing">
         <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${leavePDX}</span></div>
@@ -1276,6 +1284,7 @@ function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){
 
 // ─── FILTER STATE (multi-select by homeCity) ──────────────────────────────────
 let allGames = [];
+let cardStore = {};
 let selectedCodes = new Set();
 
 function render() {
@@ -1808,6 +1817,7 @@ return;
 }
 const codes = new Set();
 allGames = [];
+cardStore = {};
 for (const {date, game} of games) {
 const result = buildCard(date, game);
 if (!result) continue;
@@ -1837,6 +1847,7 @@ if (!games.length) {
 
 const codes = new Set();
 allGames = [];
+cardStore = {};
 for (const {date, game} of games) {
   const result = buildCard(date, game);
   if (!result) continue;
