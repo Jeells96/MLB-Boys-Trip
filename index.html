@@ -107,15 +107,16 @@ flex-shrink: 0;
 }
 .chip:active { transform: scale(0.94); }
 .chip.active {
-background: var(–accent);
-border-color: var(–accent);
-color: #000;
+background: #1a3a2a;
+border-color: var(–green);
+color: #fff;
 font-weight: 600;
 }
 .chip.all.active {
-background: var(–accent2);
+background: #1a2a3a;
 border-color: var(–accent2);
-color: #000;
+color: #fff;
+font-weight: 600;
 }
 .divider-pill {
 width: 1px; height: 14px;
@@ -405,9 +406,9 @@ transition: all 0.12s;
 }
 .day-chip:active { transform: scale(0.94); }
 .day-chip.active {
-background: var(–accent2);
+background: #1a2a3a;
 border-color: var(–accent2);
-color: #000;
+color: #fff;
 font-weight: 600;
 }
 </style>
@@ -666,7 +667,7 @@ function render() {
 
   let html = `<div class="game-count">${filtered.length} GAME${filtered.length!==1?'S':''} · ${Object.keys(byDate).length} SAT</div>`;
   for (const [date, games] of Object.entries(byDate)) {
-    html += `<div class="date-divider"><span>SAT</span>${formatShortDate(date)}</div>`;
+    html += `<div class="date-divider">${formatShortDate(date)}</div>`;
     html += `<div class="games-grid">`;
     for (const g of games) html += g.html;
     html += `</div>`;
