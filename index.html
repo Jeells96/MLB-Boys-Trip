@@ -836,12 +836,176 @@ border-color: #7c3aed;
 color: #9d7ef5;
 background: #2a1a4a;
 }
+
+/* ── SHARE PROMPT SHEET ── */
+.share-overlay {
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,0.8);
+z-index: 400;
+align-items: flex-end;
+justify-content: center;
+}
+.share-overlay.open { display: flex; }
+.share-sheet {
+background: #161b22;
+border: 1px solid #7c3aed44;
+border-bottom: none;
+border-radius: 18px 18px 0 0;
+padding: 18px 20px 38px;
+width: 100%;
+max-width: 480px;
+animation: slideUp 0.2s ease;
+}
+.share-handle {
+width: 36px; height: 4px;
+background: var(–border);
+border-radius: 2px;
+margin: 0 auto 16px;
+}
+.share-title {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 20px;
+letter-spacing: 1.5px;
+color: #9d7ef5;
+margin-bottom: 4px;
+}
+.share-subtitle {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-bottom: 16px;
+}
+.share-field {
+margin-bottom: 12px;
+}
+.share-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.4px;
+margin-bottom: 6px;
+}
+.share-label em { color: var(–red); font-style: normal; }
+.share-input {
+width: 100%;
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 8px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 13px;
+padding: 8px 12px;
+outline: none;
+transition: border-color 0.12s;
+box-sizing: border-box;
+}
+.share-input:focus { border-color: #7c3aed; }
+.share-input::placeholder { color: #3a4150; }
+textarea.share-input {
+resize: none;
+height: 70px;
+line-height: 1.5;
+}
+.share-actions {
+display: flex;
+gap: 8px;
+margin-top: 16px;
+}
+.share-confirm {
+flex: 1;
+background: #7c3aed;
+color: #fff;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 17px;
+letter-spacing: 1px;
+border: none;
+border-radius: 10px;
+padding: 11px;
+cursor: pointer;
+transition: opacity 0.12s;
+}
+.share-confirm:active { opacity: 0.8; }
+.share-cancel {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+border-radius: 10px;
+padding: 11px 16px;
+cursor: pointer;
+}
+
+/* Editable fields in shared card */
+.shared-edit-row {
+display: flex;
+align-items: center;
+gap: 6px;
+padding: 5px 12px;
+border-top: 1px solid var(–border);
+}
+.shared-edit-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.3px;
+white-space: nowrap;
+flex-shrink: 0;
+}
+.shared-edit-input {
+background: transparent;
+border: none;
+border-bottom: 1px solid var(–border);
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+font-weight: 500;
+width: 100%;
+outline: none;
+padding: 2px 4px;
+transition: border-color 0.12s;
+}
+.shared-edit-input:focus { border-bottom-color: #7c3aed; }
+.shared-notes-wrap {
+padding: 6px 12px 8px;
+border-top: 1px solid var(–border);
+}
+.shared-notes-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.3px;
+margin-bottom: 4px;
+}
+.shared-notes-input {
+width: 100%;
+background: transparent;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 5px 8px;
+outline: none;
+resize: none;
+height: 48px;
+line-height: 1.4;
+box-sizing: border-box;
+transition: border-color 0.12s;
+}
+.shared-notes-input:focus { border-color: #7c3aed; }
+.shared-notes-input::placeholder { color: #3a4150; }
 </style>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
@@ -856,7 +1020,7 @@ background: #2a1a4a;
   const app = initializeApp(firebaseConfig);
   getAnalytics(app);
   window.db = getFirestore(app);
-  window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy };
+  window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc };
 </script>
 
 </head>
@@ -1434,46 +1598,96 @@ function isShared(gameId) {
   return sharedGamesCache.some(g => g.gameId === String(gameId));
 }
 
-async function toggleShared() {
+// pendingShareGame holds the game to share while the prompt is open
+let pendingShareGame = null;
+
+function toggleShared() {
   if (!currentModalGame) return;
   const gameId = String(currentModalGame.gameId);
-  const btn = document.getElementById('mSharedBtn');
-
   const existing = sharedGamesCache.find(g => g.gameId === gameId);
   if (existing) {
-    // Remove from Firebase
-    try {
-      const { deleteDoc, doc } = window.firestoreFns;
-      await deleteDoc(doc(window.db, 'sharedGames', existing.fbId));
-      sharedGamesCache = sharedGamesCache.filter(g => g.gameId !== gameId);
-      updateSharedBtn(false);
-    } catch(e) { console.error('Delete error:', e); }
+    // Already shared — remove immediately
+    removeSharedById(existing.fbId, gameId);
   } else {
-    // Add to Firebase
-    try {
-      const { addDoc, collection } = window.firestoreFns;
-      const data = {
-        ...currentModalGame,
-        gameId,
-        sharedAt: Date.now(),
-      };
-      const ref = await addDoc(collection(window.db, 'sharedGames'), data);
-      sharedGamesCache.push({ fbId: ref.id, ...data });
-      updateSharedBtn(true);
-    } catch(e) { console.error('Add error:', e); }
+    // Open the share prompt
+    pendingShareGame = currentModalGame;
+    document.getElementById('shareSubtitle').textContent = currentModalGame.matchup + ' · ' + currentModalGame.dateLabel;
+    document.getElementById('shareByInput').value = localStorage.getItem('lastSharedBy') || '';
+    document.getElementById('shareNotesInput').value = '';
+    document.getElementById('shareOverlay').classList.add('open');
   }
-  updateSharedTab();
-  if (document.getElementById('tabShared').classList.contains('active')) renderShared();
 }
 
-async function removeShared(fbId) {
+function shareOutsideClick(e) {
+  if (e.target === document.getElementById('shareOverlay')) closeSharePrompt();
+}
+function closeSharePrompt() {
+  document.getElementById('shareOverlay').classList.remove('open');
+  pendingShareGame = null;
+}
+
+async function confirmShare() {
+  const sharedBy = document.getElementById('shareByInput').value.trim();
+  if (!sharedBy) {
+    document.getElementById('shareByInput').focus();
+    document.getElementById('shareByInput').style.borderColor = 'var(--red)';
+    setTimeout(() => document.getElementById('shareByInput').style.borderColor = '', 1500);
+    return;
+  }
+  const notes = document.getElementById('shareNotesInput').value.trim();
+  localStorage.setItem('lastSharedBy', sharedBy);
+
+  closeSharePrompt();
+  if (!pendingShareGame || !window.db) return;
+
+  try {
+    const { addDoc, collection } = window.firestoreFns;
+    const data = {
+      ...pendingShareGame,
+      gameId: String(pendingShareGame.gameId),
+      sharedAt: Date.now(),
+      sharedBy,
+      notes,
+    };
+    const ref = await addDoc(collection(window.db, 'sharedGames'), data);
+    sharedGamesCache.push({ fbId: ref.id, ...data });
+    updateSharedBtn(true);
+    updateSharedTab();
+    // Update fav share button if visible
+    const favBtn = document.getElementById('fav-share-' + data.gameId);
+    if (favBtn) { favBtn.textContent = '🔗 SHARED'; favBtn.classList.add('shared-active'); }
+    if (document.getElementById('tabShared').classList.contains('active')) renderShared();
+  } catch(e) { console.error('Add error:', e); }
+  pendingShareGame = null;
+}
+
+async function removeSharedById(fbId, gameId) {
   try {
     const { deleteDoc, doc } = window.firestoreFns;
     await deleteDoc(doc(window.db, 'sharedGames', fbId));
     sharedGamesCache = sharedGamesCache.filter(g => g.fbId !== fbId);
-    renderShared();
+    updateSharedBtn(false);
     updateSharedTab();
-  } catch(e) { console.error('Remove error:', e); }
+    const favBtn = document.getElementById('fav-share-' + gameId);
+    if (favBtn) { favBtn.textContent = '🔗 SHARE'; favBtn.classList.remove('shared-active'); }
+    if (document.getElementById('tabShared').classList.contains('active')) renderShared();
+  } catch(e) { console.error('Delete error:', e); }
+}
+
+
+async function updateSharedField(fbId, field, value) {
+  if (!window.db) return;
+  try {
+    const { doc, updateDoc } = window.firestoreFns;
+    await updateDoc(doc(window.db, 'sharedGames', fbId), { [field]: value });
+    const entry = sharedGamesCache.find(g => g.fbId === fbId);
+    if (entry) entry[field] = value;
+  } catch(e) { console.error('Update error:', e); }
+}
+async function removeShared(fbId) {
+  const game = sharedGamesCache.find(g => g.fbId === fbId);
+  const gameId = game ? game.gameId : null;
+  await removeSharedById(fbId, gameId);
 }
 
 function updateSharedBtn(saved) {
@@ -1488,18 +1702,19 @@ function updateSharedBtn(saved) {
   }
 }
 
-async function shareFavGame(gameId) {
+function shareFavGame(gameId) {
   const favs = getFavorites();
   const game = favs.find(f => f.gameId === String(gameId));
   if (!game) return;
-  currentModalGame = game;
-  await toggleShared();
-  // Update button in fav card
-  const btn = document.getElementById('fav-share-' + gameId);
-  if (btn) {
-    const shared = isShared(String(gameId));
-    btn.textContent = '🔗 ' + (shared ? 'SHARED' : 'SHARE');
-    btn.classList.toggle('shared-active', shared);
+  const existing = sharedGamesCache.find(g => g.gameId === String(gameId));
+  if (existing) {
+    removeSharedById(existing.fbId, String(gameId));
+  } else {
+    pendingShareGame = game;
+    document.getElementById('shareSubtitle').textContent = game.matchup + ' · ' + game.dateLabel;
+    document.getElementById('shareByInput').value = localStorage.getItem('lastSharedBy') || '';
+    document.getElementById('shareNotesInput').value = '';
+    document.getElementById('shareOverlay').classList.add('open');
   }
 }
 
@@ -1519,7 +1734,7 @@ function renderShared() {
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
-          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}</div>
+          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr} · ${new Date(f.sharedAt).toLocaleDateString()}</div>
         </div>
         <button class="shared-remove" onclick="removeShared('${f.fbId}')">✕</button>
       </div>
@@ -1529,98 +1744,116 @@ function renderShared() {
         <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${f.leaveCity}</div></div>
         <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${f.arrivePDX} PT</div></div>
       </div>
-      <div class="shared-footer">
-        <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
-        <span class="shared-by">Shared ${new Date(f.sharedAt).toLocaleDateString()}</span>
+      <div class="shared-edit-row">
+        <span class="shared-edit-label">Shared by</span>
+        <input class="shared-edit-input" value="${(f.sharedBy||'').replace(/"/g,'&quot;')}"
+          placeholder="Name"
+          onchange="updateSharedField('${f.fbId}','sharedBy',this.value)">
       </div>
-    </div>
-  `).join('');
+      <div class="shared-notes-wrap">
+        <div class="shared-notes-label">Notes</div>
+        <textarea class="shared-notes-input"
+          placeholder="Add notes…"
+          onchange="updateSharedField('${f.fbId}','notes',this.value)">${f.notes||''}</textarea>
+
+```
+  </div>
+  <div class="shared-footer">
+    <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
+  </div>
+</div>
+```
+
+`).join(’’);
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 function initDayChips() {
-  // Default: only Saturday active
-  activeDays = new Set([6]);
-  document.querySelectorAll('.day-chip').forEach(chip => {
-    const dow = parseInt(chip.dataset.dow);
-    if (dow === 6) {
-      chip.classList.add('active');
-    } else {
-      chip.classList.remove('active');
-    }
-    chip.addEventListener('click', () => {
-      if (activeDays.has(dow)) {
-        if (activeDays.size === 1) return; // keep at least one
-        activeDays.delete(dow);
-        chip.classList.remove('active');
-      } else {
-        activeDays.add(dow);
-        chip.classList.add('active');
-      }
-      reloadGames();
-    });
-  });
+// Default: only Saturday active
+activeDays = new Set([6]);
+document.querySelectorAll(’.day-chip’).forEach(chip => {
+const dow = parseInt(chip.dataset.dow);
+if (dow === 6) {
+chip.classList.add(‘active’);
+} else {
+chip.classList.remove(‘active’);
+}
+chip.addEventListener(‘click’, () => {
+if (activeDays.has(dow)) {
+if (activeDays.size === 1) return; // keep at least one
+activeDays.delete(dow);
+chip.classList.remove(‘active’);
+} else {
+activeDays.add(dow);
+chip.classList.add(‘active’);
+}
+reloadGames();
+});
+});
 }
 
 async function reloadGames() {
-  const dot = document.getElementById('statusDot');
-  dot.className = 'status-dot loading';
-  document.getElementById('main').innerHTML = '<div class="loading-state">⚾ Loading games…</div>';
-  selectedCodes.clear();
-  document.querySelectorAll('#filterBar .chip').forEach(c => c.classList.remove('active'));
-  document.getElementById('allChip').classList.add('active');
-  try {
-    const games = await fetchGamesByDays(activeDays);
-    dot.className = 'status-dot ready';
-    if (!games.length) {
-      document.getElementById('main').innerHTML = '<div class="empty-state">No upcoming games found for selected days.</div>';
-      return;
-    }
-    const codes = new Set();
-    allGames = [];
-    for (const {date, game} of games) {
-      const result = buildCard(date, game);
-      if (!result) continue;
-      codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
-    }
-    buildFilterChips(codes);
-    render();
-  } catch(err) {
-    dot.className = 'status-dot error';
-    document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
-  }
+const dot = document.getElementById(‘statusDot’);
+dot.className = ‘status-dot loading’;
+document.getElementById(‘main’).innerHTML = ‘<div class="loading-state">⚾ Loading games…</div>’;
+selectedCodes.clear();
+document.querySelectorAll(’#filterBar .chip’).forEach(c => c.classList.remove(‘active’));
+document.getElementById(‘allChip’).classList.add(‘active’);
+try {
+const games = await fetchGamesByDays(activeDays);
+dot.className = ‘status-dot ready’;
+if (!games.length) {
+document.getElementById(‘main’).innerHTML = ‘<div class="empty-state">No upcoming games found for selected days.</div>’;
+return;
+}
+const codes = new Set();
+allGames = [];
+for (const {date, game} of games) {
+const result = buildCard(date, game);
+if (!result) continue;
+codes.add(result.homeCode);
+allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+}
+buildFilterChips(codes);
+render();
+} catch(err) {
+dot.className = ‘status-dot error’;
+document.getElementById(‘main’).innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
+}
 }
 
 async function init() {
-  initDayChips();
-  const dot = document.getElementById('statusDot');
-  try {
-    const games = await fetchGamesByDays(activeDays);
-    dot.className = 'status-dot ready';
+initDayChips();
+const dot = document.getElementById(‘statusDot’);
+try {
+const games = await fetchGamesByDays(activeDays);
+dot.className = ‘status-dot ready’;
 
-    if (!games.length) {
-      document.getElementById('main').innerHTML = `<div class="empty-state">No remaining Saturday games found.</div>`;
-      return;
-    }
+```
+if (!games.length) {
+  document.getElementById('main').innerHTML = `<div class="empty-state">No remaining Saturday games found.</div>`;
+  return;
+}
 
-    const codes = new Set();
-    allGames = [];
-    for (const {date, game} of games) {
-      const result = buildCard(date, game);
-      if (!result) continue;
-      codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
-    }
+const codes = new Set();
+allGames = [];
+for (const {date, game} of games) {
+  const result = buildCard(date, game);
+  if (!result) continue;
+  codes.add(result.homeCode);
+  allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+}
 
-    buildFilterChips(codes);
-    render();
-    updateFavTab();
-    getSharedGames().then(() => updateSharedTab());
-  } catch(err) {
-    dot.className = 'status-dot error';
-    document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
-  }
+buildFilterChips(codes);
+render();
+updateFavTab();
+getSharedGames().then(() => updateSharedTab());
+```
+
+} catch(err) {
+dot.className = ‘status-dot error’;
+document.getElementById(‘main’).innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
+}
 }
 
 init();
@@ -1711,6 +1944,28 @@ init();
 
 <div id="sharedView" style="display:none; padding:10px 10px 40px;">
   <div id="sharedContent"><div class="shared-loading">Loading shared games…</div></div>
+</div>
+
+<!-- Share Prompt Sheet -->
+
+<div class="share-overlay" id="shareOverlay" onclick="shareOutsideClick(event)">
+  <div class="share-sheet">
+    <div class="share-handle"></div>
+    <div class="share-title">🔗 SHARE GAME</div>
+    <div class="share-subtitle" id="shareSubtitle"></div>
+    <div class="share-field">
+      <div class="share-label">Share By <em>*</em></div>
+      <input class="share-input" id="shareByInput" type="text" placeholder="Your name" maxlength="50">
+    </div>
+    <div class="share-field">
+      <div class="share-label">Notes <span style="color:var(--muted);font-size:9px;">(optional)</span></div>
+      <textarea class="share-input" id="shareNotesInput" placeholder="Add any notes…"></textarea>
+    </div>
+    <div class="share-actions">
+      <button class="share-cancel" onclick="closeSharePrompt()">CANCEL</button>
+      <button class="share-confirm" onclick="confirmShare()">SHARE IT →</button>
+    </div>
+  </div>
 </div>
 </body>
 </html>
