@@ -55,6 +55,13 @@ font-family: ‘DM Mono’, monospace;
 font-size: 9px;
 color: var(–muted);
 letter-spacing: 0.4px;
+margin-top: 1px;
+}
+.subtitle {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+letter-spacing: 0.4px;
 }
 .status-dot {
 width: 6px; height: 6px;
@@ -410,6 +417,134 @@ border-color: var(–accent2);
 color: #fff;
 font-weight: 600;
 }
+
+/* ── FILTER PANEL ── */
+.filter-panel-btn {
+display: flex;
+align-items: center;
+gap: 4px;
+background: var(–chip);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 3px 8px;
+cursor: pointer;
+user-select: none;
+white-space: nowrap;
+flex-shrink: 0;
+transition: all 0.12s;
+margin-left: auto;
+}
+.filter-panel-btn.has-filters {
+background: #1a3a2a;
+border-color: var(–green);
+color: #fff;
+}
+.filter-panel-btn:active { opacity: 0.7; }
+
+/* Filter modal */
+.fp-overlay {
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,0.72);
+z-index: 300;
+align-items: flex-end;
+justify-content: center;
+}
+.fp-overlay.open { display: flex; }
+.fp-sheet {
+background: #161b22;
+border: 1px solid var(–border);
+border-bottom: none;
+border-radius: 18px 18px 0 0;
+padding: 18px 20px 38px;
+width: 100%;
+max-width: 480px;
+animation: slideUp 0.2s ease;
+}
+.fp-handle {
+width: 36px; height: 4px;
+background: var(–border);
+border-radius: 2px;
+margin: 0 auto 16px;
+}
+.fp-title {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 20px;
+letter-spacing: 1.5px;
+color: var(–text);
+margin-bottom: 16px;
+}
+.fp-group {
+margin-bottom: 14px;
+}
+.fp-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.4px;
+margin-bottom: 6px;
+}
+.fp-row {
+display: flex;
+gap: 8px;
+align-items: center;
+}
+.fp-input {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+padding: 6px 10px;
+width: 100%;
+outline: none;
+transition: border-color 0.12s;
+}
+.fp-input:focus { border-color: var(–accent2); }
+.fp-input::placeholder { color: #3a4150; }
+.fp-sep {
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+flex-shrink: 0;
+}
+.fp-actions {
+display: flex;
+gap: 8px;
+margin-top: 18px;
+}
+.fp-apply {
+flex: 1;
+background: var(–green);
+color: #000;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 16px;
+letter-spacing: 1px;
+border: none;
+border-radius: 10px;
+padding: 10px;
+cursor: pointer;
+transition: opacity 0.12s;
+}
+.fp-apply:active { opacity: 0.8; }
+.fp-clear {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+border-radius: 10px;
+padding: 10px 14px;
+cursor: pointer;
+transition: opacity 0.12s;
+}
+.fp-clear:active { opacity: 0.7; }
 </style>
 
 </head>
@@ -419,8 +554,12 @@ font-weight: 600;
   <div class="header-top">
     <div>
       <div class="logo">⚾ Take Me Out To The Ballgame</div>
+      <div class="subtitle">MLB TRIP PLANNER</div>
     </div>
-    <div class="status-dot loading" id="statusDot"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+      <div class="filter-panel-btn" id="fpBtn" onclick="openFilterPanel()">⚙ FILTERS</div>
+      <div class="status-dot loading" id="statusDot"></div>
+    </div>
   </div>
   <div class="day-bar" id="dayBar">
     <div class="day-chip active" data-dow="0">SUN</div>
@@ -515,14 +654,14 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, flightStr, expUrl) {
+function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl) {
   document.getElementById('mMatchup').textContent = matchup;
   document.getElementById('mSub').textContent = `SAT · ${dateLabel} · ✈ PDX ${flightStr}`;
   document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
     <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${leavePDX} PT</div></div>
     <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${arriveby}</div></div>
-    <div class="mt-item"><div class="mt-label">Leave after</div><div class="mt-val r">${leaveCity}</div></div>
+    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${leaveCity}</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${arrivePDX} PT</div></div>
   `;
   document.getElementById('modalOverlay').classList.add('open');
 }
@@ -595,12 +734,15 @@ function buildCard(dateStr, game) {
     startDisplay = toTZ(gameStartUTC, homeTZ);
   }
 
-  let leavePDX = '—', arriveby = '—', leaveCity = '—';
+  let leavePDX = '—', arriveby = '—', leaveCity = '—', arrivePDX = '—';
+  let leaveCityUTC = null;
   if (gameStartUTC) {
     const arrTime = addHours(gameStartUTC, -3);
-    arriveby  = toTZ(arrTime, homeTZ);
-    leavePDX  = toTZ(addHours(arrTime, -(flightHours+1)), 'America/Los_Angeles');
-    leaveCity = toTZ(addHours(gameStartUTC, 6), homeTZ);
+    arriveby     = toTZ(arrTime, homeTZ);
+    leavePDX     = toTZ(addHours(arrTime, -(flightHours+1)), 'America/Los_Angeles');
+    leaveCityUTC = addHours(gameStartUTC, 6);
+    leaveCity    = toTZ(leaveCityUTC, homeTZ);
+    arrivePDX    = toTZ(addHours(leaveCityUTC, flightHours), 'America/Los_Angeles');
   }
 
   const flightStr = flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`;
@@ -615,7 +757,7 @@ function buildCard(dateStr, game) {
   // Inline card (small)
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${flightStr}','${expUrl}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay}</div>
@@ -628,7 +770,7 @@ function buildCard(dateStr, game) {
       <div class="card-timing">
         <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${leavePDX}</span></div>
         <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${arriveby}</span></div>
-        <div class="t-row"><span class="t-label">Rtrn</span><span class="t-val r">${leaveCity}</span></div>
+        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${arrivePDX} PT</span></div>
       </div>
       <div class="card-price">
         <span class="p-label">$</span>
@@ -639,7 +781,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, html };
+  return { homeCity, homeCode, flightHours, leavePDX, leaveCity, arrivePDX, savedPrice, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -651,7 +793,41 @@ let selectedCodes = new Set();
 function render() {
   const main = document.getElementById('main');
   const isAll = selectedCodes.size === 0;
-  const filtered = isAll ? allGames : allGames.filter(g => selectedCodes.has(g.homeCode));
+  let filtered = isAll ? allGames : allGames.filter(g => selectedCodes.has(g.homeCode));
+
+  // Apply advanced filters
+  if (activeFilters.maxFlight) {
+    filtered = filtered.filter(g => (g.flightHours || 99) <= activeFilters.maxFlight);
+  }
+  if (activeFilters.leavePDXFrom || activeFilters.leavePDXTo) {
+    const fromMin = timeToMinutes(activeFilters.leavePDXFrom);
+    const toMin   = timeToMinutes(activeFilters.leavePDXTo);
+    filtered = filtered.filter(g => {
+      const t = displayTimeToMinutes(g.leavePDX);
+      if (t === null) return true;
+      if (fromMin !== null && t < fromMin) return false;
+      if (toMin   !== null && t > toMin)   return false;
+      return true;
+    });
+  }
+  if (activeFilters.returnFrom || activeFilters.returnTo) {
+    const fromMin = timeToMinutes(activeFilters.returnFrom);
+    const toMin   = timeToMinutes(activeFilters.returnTo);
+    filtered = filtered.filter(g => {
+      const t = displayTimeToMinutes(g.arrivePDX);
+      if (t === null) return true;
+      if (fromMin !== null && t < fromMin) return false;
+      if (toMin   !== null && t > toMin)   return false;
+      return true;
+    });
+  }
+  if (activeFilters.maxPrice) {
+    filtered = filtered.filter(g => {
+      const price = parseFloat(g.savedPrice);
+      if (!price) return true; // no price entered = don't filter out
+      return price <= activeFilters.maxPrice;
+    });
+  }
 
   if (!filtered.length) {
     main.innerHTML = `<div class="empty-state">No games match the selected teams.</div>`;
@@ -712,6 +888,72 @@ function buildFilterChips(codes) {
   });
 }
 
+
+// ─── FILTER PANEL LOGIC ───────────────────────────────────────────────────────
+let activeFilters = {};
+
+function openFilterPanel() {
+  // Restore saved values
+  document.getElementById('fpMaxFlight').value   = activeFilters.maxFlight  || '';
+  document.getElementById('fpLeavePDXFrom').value = activeFilters.leavePDXFrom || '';
+  document.getElementById('fpLeavePDXTo').value   = activeFilters.leavePDXTo   || '';
+  document.getElementById('fpReturnFrom').value   = activeFilters.returnFrom || '';
+  document.getElementById('fpReturnTo').value     = activeFilters.returnTo   || '';
+  document.getElementById('fpMaxPrice').value     = activeFilters.maxPrice   || '';
+  document.getElementById('fpOverlay').classList.add('open');
+}
+function fpOutsideClick(e) {
+  if (e.target === document.getElementById('fpOverlay'))
+    document.getElementById('fpOverlay').classList.remove('open');
+}
+function clearFilters() {
+  activeFilters = {};
+  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  updateFilterBtn();
+  document.getElementById('fpOverlay').classList.remove('open');
+  render();
+}
+function applyFilters() {
+  activeFilters = {
+    maxFlight:    parseFloat(document.getElementById('fpMaxFlight').value)   || null,
+    leavePDXFrom: document.getElementById('fpLeavePDXFrom').value || null,
+    leavePDXTo:   document.getElementById('fpLeavePDXTo').value   || null,
+    returnFrom:   document.getElementById('fpReturnFrom').value   || null,
+    returnTo:     document.getElementById('fpReturnTo').value     || null,
+    maxPrice:     parseFloat(document.getElementById('fpMaxPrice').value)    || null,
+  };
+  updateFilterBtn();
+  document.getElementById('fpOverlay').classList.remove('open');
+  render();
+}
+function updateFilterBtn() {
+  const hasAny = Object.values(activeFilters).some(v => v !== null && v !== '');
+  const btn = document.getElementById('fpBtn');
+  btn.classList.toggle('has-filters', hasAny);
+  btn.textContent = hasAny ? '⚙ FILTERS ●' : '⚙ FILTERS';
+}
+
+// Convert "HH:MM" time string to minutes since midnight for comparison
+function timeToMinutes(str) {
+  if (!str) return null;
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+// Parse a display time like "6:35 AM" or "11:05 PM" to minutes since midnight
+function displayTimeToMinutes(str) {
+  if (!str || str === '—') return null;
+  const match = str.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return null;
+  let h = parseInt(match[1]);
+  const m = parseInt(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return h * 60 + m;
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 function initDayChips() {
   // Default: only Saturday active
@@ -757,7 +999,7 @@ async function reloadGames() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, html: result.html });
     }
     buildFilterChips(codes);
     render();
@@ -785,7 +1027,7 @@ async function init() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, html: result.html });
     }
 
     buildFilterChips(codes);
@@ -799,5 +1041,53 @@ async function init() {
 init();
 </script>
 
+<!-- Filter Panel -->
+
+<div class="fp-overlay" id="fpOverlay" onclick="fpOutsideClick(event)">
+  <div class="fp-sheet">
+    <div class="fp-handle"></div>
+    <div class="fp-title">⚙ FILTER GAMES</div>
+
+```
+<div class="fp-group">
+  <div class="fp-label">✈ Max Flight Duration (hours)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpMaxFlight" type="number" inputmode="decimal" placeholder="e.g. 3" min="0" max="12" step="0.5">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">🛫 Leave PDX — Between (PT)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpLeavePDXFrom" type="time" placeholder="05:00">
+    <span class="fp-sep">–</span>
+    <input class="fp-input" id="fpLeavePDXTo" type="time" placeholder="10:00">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">🛬 Arrive Back in PDX — Between (PT)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpReturnFrom" type="time" placeholder="20:00">
+    <span class="fp-sep">–</span>
+    <input class="fp-input" id="fpReturnTo" type="time" placeholder="23:59">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">💰 Max Price Found ($)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpMaxPrice" type="number" inputmode="decimal" placeholder="e.g. 350" min="0">
+  </div>
+</div>
+
+<div class="fp-actions">
+  <button class="fp-clear" onclick="clearFilters()">CLEAR</button>
+  <button class="fp-apply" onclick="applyFilters()">APPLY FILTERS</button>
+</div>
+```
+
+  </div>
+</div>
 </body>
 </html>
