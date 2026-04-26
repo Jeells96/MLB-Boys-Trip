@@ -45,12 +45,11 @@ margin-bottom: 8px;
 }
 .logo {
 font-family: ‘Bebas Neue’, sans-serif;
-font-size: 20px;
+font-size: 16px;
 letter-spacing: 1px;
 color: var(–accent);
 line-height: 1;
 }
-.logo span { color: var(–text); }
 .subtitle {
 font-family: ‘DM Mono’, monospace;
 font-size: 9px;
@@ -419,8 +418,7 @@ font-weight: 600;
 <div class="header">
   <div class="header-top">
     <div>
-      <div class="logo">⚾ <span>PDX</span> → MLB</div>
-      <div class="subtitle">MLB TRIP PLANNER · ROUND TRIP FROM PDX</div>
+      <div class="logo">⚾ Take Me Out To The Ballgame</div>
     </div>
     <div class="status-dot loading" id="statusDot"></div>
   </div>
@@ -665,7 +663,8 @@ function render() {
     (byDate[g.date] = byDate[g.date] || []).push(g);
   }
 
-  let html = `<div class="game-count">${filtered.length} GAME${filtered.length!==1?'S':''} · ${Object.keys(byDate).length} SAT</div>`;
+  const numDays = Object.keys(byDate).length;
+  let html = `<div class="game-count">${filtered.length} GAME${filtered.length!==1?'S':''} · ${numDays} DAY${numDays!==1?'S':''}</div>`;
   for (const [date, games] of Object.entries(byDate)) {
     html += `<div class="date-divider">${formatShortDate(date)}</div>`;
     html += `<div class="games-grid">`;
