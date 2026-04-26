@@ -705,6 +705,137 @@ background: #2a1a3a;
 border-color: #c084fc;
 color: #c084fc;
 }
+
+/* ── SHARED GAMES ── */
+.shared-card {
+background: var(–card);
+border: 1px solid #7c3aed44;
+border-radius: 10px;
+margin-bottom: 10px;
+overflow: hidden;
+}
+.shared-head {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 10px 12px 8px;
+}
+.shared-matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 22px;
+letter-spacing: 1.5px;
+color: var(–text);
+}
+.shared-meta {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-top: 2px;
+}
+.shared-remove {
+background: none;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–red);
+font-size: 14px;
+padding: 4px 8px;
+cursor: pointer;
+flex-shrink: 0;
+}
+.shared-timing {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 6px;
+padding: 8px 12px;
+border-top: 1px solid var(–border);
+background: #1c1a2e;
+}
+.shared-t-item { display: flex; flex-direction: column; gap: 2px; }
+.shared-t-label { font-family:‘DM Mono’,monospace; font-size:8px; color:var(–muted); text-transform:uppercase; letter-spacing:.3px; }
+.shared-t-val   { font-family:‘DM Mono’,monospace; font-size:10px; font-weight:500; }
+.shared-t-val.y { color:var(–accent); }
+.shared-t-val.g { color:var(–green); }
+.shared-t-val.r { color:var(–red); }
+.shared-footer {
+display: flex;
+align-items: center;
+gap: 8px;
+padding: 7px 12px 8px;
+border-top: 1px solid var(–border);
+}
+.shared-expedia {
+display: inline-flex;
+align-items: center;
+background: var(–accent);
+color: #000;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 700;
+padding: 5px 10px;
+border-radius: 6px;
+text-decoration: none;
+white-space: nowrap;
+}
+.shared-by {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: #9d7ef5;
+margin-left: auto;
+}
+.modal-shared-btn {
+display: block;
+width: 100%;
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+padding: 9px;
+border-radius: 10px;
+border: 1px solid var(–border);
+background: var(–chip);
+color: var(–muted);
+cursor: pointer;
+margin-bottom: 8px;
+transition: all 0.15s;
+}
+.modal-shared-btn.saved {
+background: #2a1a4a;
+border-color: #7c3aed;
+color: #9d7ef5;
+}
+.shared-empty {
+text-align: center;
+padding: 50px 20px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+line-height: 1.8;
+}
+.shared-loading {
+text-align: center;
+padding: 30px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+}
+
+.fav-share-btn {
+background: var(–chip);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+padding: 5px 8px;
+cursor: pointer;
+white-space: nowrap;
+flex-shrink: 0;
+transition: all 0.12s;
+}
+.fav-share-btn.shared-active {
+border-color: #7c3aed;
+color: #9d7ef5;
+background: #2a1a4a;
+}
 </style>
 
 </head>
@@ -733,6 +864,7 @@ color: #c084fc;
   <div class="tab-bar">
     <div class="tab active" id="tabGames" onclick="switchTab('games')">⚾ GAMES</div>
     <div class="tab" id="tabFavs" onclick="switchTab('favs')">⭐ FAVORITES</div>
+    <div class="tab" id="tabShared" onclick="switchTab('shared')">🔗 SHARED</div>
   </div>
   <div id="headerFilters">
   <div class="filter-wrap">
@@ -761,11 +893,12 @@ color: #c084fc;
     </a>
     <div class="modal-link-note">PDX → destination · Round-trip · Outbound &amp; return same Saturday</div>
     <div class="modal-fav-btn" id="mFavBtn" onclick="toggleFavorite()">⭐ SAVE TO FAVORITES</div>
+    <div class="modal-shared-btn" id="mSharedBtn" onclick="toggleShared()">🔗 SHARE THIS GAME</div>
     <div class="modal-close" onclick="closeModal()">CLOSE</div>
   </div>
 </div>
 
-<script>
+<script type="module">
 // ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
   109: ['ARI', 'Phoenix',      'America/Phoenix',     'PHX', 2.5],
@@ -832,6 +965,7 @@ function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX,
     <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${leaveCity}</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${arrivePDX} PT</div></div>
   `;
   updateFavBtn(isFavorited(gameId));
+  updateSharedBtn(isShared(gameId));
   document.getElementById('modalOverlay').classList.add('open');
 }
 function closeModal() {
@@ -950,7 +1084,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, flightHours, leavePDX, leaveCity, arrivePDX, savedPrice, html };
+  return { homeCity, homeCode, flightHours, leavePDX, leaveCity, arrivePDX, savedPrice, startDisplay, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -993,8 +1127,26 @@ function render() {
   if (activeFilters.maxPrice) {
     filtered = filtered.filter(g => {
       const price = parseFloat(g.savedPrice);
-      if (!price) return true; // no price entered = don't filter out
+      if (!price) return true;
       return price <= activeFilters.maxPrice;
+    });
+  }
+  if (activeFilters.month) {
+    const m = parseInt(activeFilters.month);
+    filtered = filtered.filter(g => {
+      const [y, mo] = g.date.split('-').map(Number);
+      return mo === m;
+    });
+  }
+  if (activeFilters.startFrom || activeFilters.startTo) {
+    const fromMin = timeToMinutes(activeFilters.startFrom);
+    const toMin   = timeToMinutes(activeFilters.startTo);
+    filtered = filtered.filter(g => {
+      const t = displayTimeToMinutes(g.startDisplay);
+      if (t === null) return true;
+      if (fromMin !== null && t < fromMin) return false;
+      if (toMin   !== null && t > toMin)   return false;
+      return true;
     });
   }
 
@@ -1069,6 +1221,9 @@ function openFilterPanel() {
   document.getElementById('fpReturnFrom').value   = activeFilters.returnFrom || '';
   document.getElementById('fpReturnTo').value     = activeFilters.returnTo   || '';
   document.getElementById('fpMaxPrice').value     = activeFilters.maxPrice   || '';
+  document.getElementById('fpMonth').value         = activeFilters.month      || '';
+  document.getElementById('fpStartFrom').value     = activeFilters.startFrom  || '';
+  document.getElementById('fpStartTo').value       = activeFilters.startTo    || '';
   document.getElementById('fpOverlay').classList.add('open');
 }
 function fpOutsideClick(e) {
@@ -1077,7 +1232,7 @@ function fpOutsideClick(e) {
 }
 function clearFilters() {
   activeFilters = {};
-  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice'].forEach(id => {
+  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice','fpMonth','fpStartFrom','fpStartTo'].forEach(id => {
     document.getElementById(id).value = '';
   });
   updateFilterBtn();
@@ -1092,6 +1247,9 @@ function applyFilters() {
     returnFrom:   document.getElementById('fpReturnFrom').value   || null,
     returnTo:     document.getElementById('fpReturnTo').value     || null,
     maxPrice:     parseFloat(document.getElementById('fpMaxPrice').value)    || null,
+    month:        document.getElementById('fpMonth').value                     || null,
+    startFrom:    document.getElementById('fpStartFrom').value                 || null,
+    startTo:      document.getElementById('fpStartTo').value                   || null,
   };
   updateFilterBtn();
   document.getElementById('fpOverlay').classList.remove('open');
@@ -1173,7 +1331,7 @@ function renderFavs() {
     const inputId = 'fav-price-' + f.gameId;
     const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
     return `
-    <div class="fav-card">
+    <div class="fav-card" id="fav-card-${f.gameId}">
       <div class="fav-head">
         <div>
           <div class="fav-matchup">${f.matchup}</div>
@@ -1189,6 +1347,7 @@ function renderFavs() {
       </div>
       <div class="fav-footer">
         <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
+        <button class="fav-share-btn" id="fav-share-${f.gameId}" onclick="shareFavGame('${f.gameId}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
         <div class="fav-price-wrap">
           <span class="fav-price-label">$</span>
           <input class="fav-price-input" type="text" inputmode="decimal" placeholder="price"
@@ -1215,13 +1374,156 @@ function updateFavTab() {
 
 // ── TAB SWITCHING ──
 function switchTab(tab) {
-  const isGames = tab === 'games';
-  document.getElementById('tabGames').classList.toggle('active', isGames);
-  document.getElementById('tabFavs').classList.toggle('active', !isGames);
-  document.getElementById('main').style.display = isGames ? '' : 'none';
-  document.getElementById('favsView').style.display = isGames ? 'none' : '';
-  document.getElementById('headerFilters').style.display = isGames ? '' : 'none';
-  if (!isGames) renderFavs();
+  ['tabGames','tabFavs','tabShared'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('main').style.display = tab === 'games' ? '' : 'none';
+  document.getElementById('favsView').style.display = tab === 'favs' ? '' : 'none';
+  document.getElementById('sharedView').style.display = tab === 'shared' ? '' : 'none';
+  document.getElementById('headerFilters').style.display = tab === 'games' ? '' : 'none';
+  if (tab === 'favs') renderFavs();
+  if (tab === 'shared') {
+    document.getElementById('sharedContent').innerHTML = '<div class="shared-loading">⏳ Loading…</div>';
+    getSharedGames().then(() => { renderShared(); updateSharedTab(); });
+  }
+}
+
+
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
+  authDomain: "mlb-games-5f69c.firebaseapp.com",
+  projectId: "mlb-games-5f69c",
+  storageBucket: "mlb-games-5f69c.firebasestorage.app",
+  messagingSenderId: "936760247178",
+  appId: "1:936760247178:web:ddc48fb1dc13b2629bbe73",
+  measurementId: "G-0XGY8WW9PQ"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const analytics = getAnalytics(firebaseApp);
+const db = getFirestore(firebaseApp);
+
+// ─── SHARED GAMES (FIREBASE) ──────────────────────────────────────────────────
+let sharedGamesCache = [];
+
+async function getSharedGames() {
+  try {
+    const q = query(collection(db, 'sharedGames'), orderBy('sharedAt', 'desc'));
+    const snap = await getDocs(q);
+    sharedGamesCache = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
+    return sharedGamesCache;
+  } catch(e) {
+    console.error('Firebase read error:', e);
+    return [];
+  }
+}
+
+function isShared(gameId) {
+  return sharedGamesCache.some(g => g.gameId === String(gameId));
+}
+
+async function toggleShared() {
+  if (!currentModalGame) return;
+  const gameId = String(currentModalGame.gameId);
+  const btn = document.getElementById('mSharedBtn');
+
+  const existing = sharedGamesCache.find(g => g.gameId === gameId);
+  if (existing) {
+    // Remove from Firebase
+    try {
+      await deleteDoc(doc(db, 'sharedGames', existing.fbId));
+      sharedGamesCache = sharedGamesCache.filter(g => g.gameId !== gameId);
+      updateSharedBtn(false);
+    } catch(e) { console.error('Delete error:', e); }
+  } else {
+    // Add to Firebase
+    try {
+      const data = {
+        ...currentModalGame,
+        gameId,
+        sharedAt: Date.now(),
+      };
+      const ref = await addDoc(collection(db, 'sharedGames'), data);
+      sharedGamesCache.push({ fbId: ref.id, ...data });
+      updateSharedBtn(true);
+    } catch(e) { console.error('Add error:', e); }
+  }
+  updateSharedTab();
+  if (document.getElementById('tabShared').classList.contains('active')) renderShared();
+}
+
+async function removeShared(fbId) {
+  try {
+    await deleteDoc(doc(db, 'sharedGames', fbId));
+    sharedGamesCache = sharedGamesCache.filter(g => g.fbId !== fbId);
+    renderShared();
+    updateSharedTab();
+  } catch(e) { console.error('Remove error:', e); }
+}
+
+function updateSharedBtn(saved) {
+  const btn = document.getElementById('mSharedBtn');
+  if (!btn) return;
+  if (saved) {
+    btn.textContent = '🔗 SHARED — TAP TO REMOVE';
+    btn.classList.add('saved');
+  } else {
+    btn.textContent = '🔗 SHARE THIS GAME';
+    btn.classList.remove('saved');
+  }
+}
+
+async function shareFavGame(gameId) {
+  const favs = getFavorites();
+  const game = favs.find(f => f.gameId === String(gameId));
+  if (!game) return;
+  currentModalGame = game;
+  await toggleShared();
+  // Update button in fav card
+  const btn = document.getElementById('fav-share-' + gameId);
+  if (btn) {
+    const shared = isShared(String(gameId));
+    btn.textContent = '🔗 ' + (shared ? 'SHARED' : 'SHARE');
+    btn.classList.toggle('shared-active', shared);
+  }
+}
+
+function updateSharedTab() {
+  const count = sharedGamesCache.length;
+  document.getElementById('tabShared').textContent = count > 0 ? `🔗 SHARED (${count})` : '🔗 SHARED';
+}
+
+function renderShared() {
+  const el = document.getElementById('sharedContent');
+  if (!sharedGamesCache.length) {
+    el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>';
+    return;
+  }
+  el.innerHTML = sharedGamesCache.map(f => `
+    <div class="shared-card">
+      <div class="shared-head">
+        <div>
+          <div class="shared-matchup">${f.matchup}</div>
+          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}</div>
+        </div>
+        <button class="shared-remove" onclick="removeShared('${f.fbId}')">✕</button>
+      </div>
+      <div class="shared-timing">
+        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${f.leavePDX} PT</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${f.arriveby}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${f.leaveCity}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${f.arrivePDX} PT</div></div>
+      </div>
+      <div class="shared-footer">
+        <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
+        <span class="shared-by">Shared ${new Date(f.sharedAt).toLocaleDateString()}</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
@@ -1269,7 +1571,7 @@ async function reloadGames() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
     }
     buildFilterChips(codes);
     render();
@@ -1297,12 +1599,13 @@ async function init() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
     }
 
     buildFilterChips(codes);
     render();
     updateFavTab();
+    getSharedGames().then(() => updateSharedTab());
   } catch(err) {
     dot.className = 'status-dot error';
     document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
@@ -1352,6 +1655,32 @@ init();
   </div>
 </div>
 
+<div class="fp-group">
+  <div class="fp-label">📅 Month</div>
+  <div class="fp-row">
+    <select class="fp-input" id="fpMonth">
+      <option value="">Any month</option>
+      <option value="3">March</option>
+      <option value="4">April</option>
+      <option value="5">May</option>
+      <option value="6">June</option>
+      <option value="7">July</option>
+      <option value="8">August</option>
+      <option value="9">September</option>
+      <option value="10">October</option>
+    </select>
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">⏰ Game Start Time (local) — Between</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpStartFrom" type="time" placeholder="12:00">
+    <span class="fp-sep">–</span>
+    <input class="fp-input" id="fpStartTo" type="time" placeholder="20:00">
+  </div>
+</div>
+
 <div class="fp-actions">
   <button class="fp-clear" onclick="clearFilters()">CLEAR</button>
   <button class="fp-apply" onclick="applyFilters()">APPLY FILTERS</button>
@@ -1365,6 +1694,12 @@ init();
 
 <div id="favsView" style="display:none; padding:10px 10px 40px;">
   <div id="favsContent"></div>
+</div>
+
+<!-- Shared Games View -->
+
+<div id="sharedView" style="display:none; padding:10px 10px 40px;">
+  <div id="sharedContent"><div class="shared-loading">Loading shared games…</div></div>
 </div>
 </body>
 </html>
