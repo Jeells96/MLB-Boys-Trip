@@ -7,27 +7,6 @@
 <title>Take Me Out To The Ballgame</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- Firebase module: sets window.db and window.firestoreFns, then resolves window.__fbReady() -->
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-const cfg = {
-  apiKey:"AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
-  authDomain:"mlb-games-5f69c.firebaseapp.com",
-  projectId:"mlb-games-5f69c",
-  storageBucket:"mlb-games-5f69c.firebasestorage.app",
-  messagingSenderId:"936760247178",
-  appId:"1:936760247178:web:ddc48fb1dc13b2629bbe73"
-};
-try {
-  const app = initializeApp(cfg);
-  window.db = getFirestore(app);
-  window.fs = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc };
-} catch(e) { console.warn('Firebase failed:', e); }
-if (window.__fbReady) window.__fbReady();
-</script>
-
 <style>
 :root {
   --bg:#0a0c0f; --card:#161b22; --border:#21262d;
@@ -386,7 +365,7 @@ let allGames=[], cardData={}, selectedCodes=new Set(), activeDays=new Set([6]);
 let filters={}, currentGame=null, pendingShare=null;
 
 // ─── FIREBASE READY ───────────────────────────────────────────────────────────
-const fbReady = new Promise(res=>{ window.__fbReady=res; setTimeout(res,4000); });
+const fbReady = new Promise(res=>{ window.__fbReady=res; setTimeout(res,500); });
 
 // ─── SEASON END ───────────────────────────────────────────────────────────────
 async function seasonEnd(year){
@@ -837,6 +816,26 @@ document.getElementById(‘vGames’).innerHTML=`<div class="error">⚠ ${err.me
 }
 
 loadGames();
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+const cfg = {
+  apiKey:"AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
+  authDomain:"mlb-games-5f69c.firebaseapp.com",
+  projectId:"mlb-games-5f69c",
+  storageBucket:"mlb-games-5f69c.firebasestorage.app",
+  messagingSenderId:"936760247178",
+  appId:"1:936760247178:web:ddc48fb1dc13b2629bbe73"
+};
+try {
+  const app = initializeApp(cfg);
+  window.db = getFirestore(app);
+  window.fs = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc };
+} catch(e) { console.warn('Firebase failed:', e); }
+// By now the main script has run and set window.__fbReady
+if (window.__fbReady) window.__fbReady();
 </script>
 
 </body>
