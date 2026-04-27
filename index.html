@@ -1624,17 +1624,20 @@ function updateSharedTab() {
   document.getElementById('tabShared').textContent = count > 0 ? `🔗 SHARED (${count})` : '🔗 SHARED';
 }
 
-// ── renderShared: original cards PLUS appended editable Shared by + Notes block.
-//    Built using DOM operations rather than long innerHTML to be safe.
+// ── renderShared: ORIGINAL simple version. No DOM manipulation tricks.
+//    Shows the sharedBy in the byline if present. No inline edit fields yet.
 function renderShared() {
   const el = document.getElementById('sharedContent');
   if (!sharedGamesCache.length) {
     el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>';
     return;
   }
-  // First, build the original card HTML for all entries (no editable block yet).
-  el.innerHTML = sharedGamesCache.map(f => `
-    <div class="shared-card" data-fb-id="${f.fbId}">
+  el.innerHTML = sharedGamesCache.map(f => {
+    const dateStr = new Date(f.sharedAt).toLocaleDateString();
+    const byline = f.sharedBy ? (f.sharedBy + ' · ' + dateStr) : ('Shared ' + dateStr);
+    const notesLine = f.notes ? `<div class="shared-meta" style="padding:6px 12px;border-top:1px solid var(--border);background:#15131f;">📝 ${f.notes}</div>` : '';
+    return `
+    <div class="shared-card">
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
@@ -1648,82 +1651,14 @@ function renderShared() {
         <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${f.leaveCity}</div></div>
         <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${f.arrivePDX} PT</div></div>
       </div>
+      ${notesLine}
       <div class="shared-footer">
         <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
-        <span class="shared-by">${f.sharedBy ? (escapeText(f.sharedBy) + ' · ') : 'Shared '}${new Date(f.sharedAt).toLocaleDateString()}</span>
+        <span class="shared-by">${byline}</span>
       </div>
     </div>
-  `).join('');
-
-  // Then, after the cards exist in the DOM, append an editable block to each
-  // using safe DOM APIs (createElement + .value) so user-entered content can
-  // never break the page.
-  for (let i = 0; i < sharedGamesCache.length; i++) {
-    const f = sharedGamesCache[i];
-    const card = el.querySelector('.shared-card[data-fb-id="' + f.fbId + '"]');
-    if (!card) continue;
-    const block = buildEditableBlock(f);
-    // Insert before .shared-footer so it shows above flight link
-    const footer = card.querySelector('.shared-footer');
-    if (footer) {
-      card.insertBefore(block, footer);
-    } else {
-      card.appendChild(block);
-    }
-  }
-}
-
-function buildEditableBlock(f) {
-  const block = document.createElement('div');
-  block.className = 'sa-block';
-
-  const row1 = document.createElement('div');
-  row1.className = 'sa-row';
-  const lbl1 = document.createElement('span');
-  lbl1.className = 'sa-label';
-  lbl1.textContent = 'Shared by';
-  const inp1 = document.createElement('input');
-  inp1.type = 'text';
-  inp1.className = 'sa-input';
-  inp1.placeholder = 'Name';
-  inp1.value = f.sharedBy || '';
-  inp1.addEventListener('input', function(){
-    scheduleSharedFieldSave(f.fbId, 'sharedBy', inp1.value);
-  });
-  const st1 = document.createElement('span');
-  st1.className = 'sa-status';
-  st1.id = 'sa-status-' + f.fbId + '-sharedBy';
-  row1.appendChild(lbl1);
-  row1.appendChild(inp1);
-  row1.appendChild(st1);
-
-  const row2 = document.createElement('div');
-  row2.className = 'sa-row sa-row-top';
-  const lbl2 = document.createElement('span');
-  lbl2.className = 'sa-label sa-label-top';
-  lbl2.textContent = 'Notes';
-  const ta = document.createElement('textarea');
-  ta.className = 'sa-textarea';
-  ta.placeholder = 'Optional notes…';
-  ta.value = f.notes || '';
-  ta.addEventListener('input', function(){
-    scheduleSharedFieldSave(f.fbId, 'notes', ta.value);
-  });
-  const st2 = document.createElement('span');
-  st2.className = 'sa-status sa-status-top';
-  st2.id = 'sa-status-' + f.fbId + '-notes';
-  row2.appendChild(lbl2);
-  row2.appendChild(ta);
-  row2.appendChild(st2);
-
-  block.appendChild(row1);
-  block.appendChild(row2);
-  return block;
-}
-
-function escapeText(s) {
-  if (s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  `;
+  }).join('');
 }
 
 // ─── SHARE PROMPT ─────────────────────────────────────────────────────────────
