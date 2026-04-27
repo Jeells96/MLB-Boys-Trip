@@ -869,7 +869,7 @@ min-height: 60px;
 .sp-textarea:focus { border-color: #7c3aed; }
 .sp-textarea::placeholder { color: #3a4150; }
 
-/* Editable fields under each shared card */
+/* Editable fields appended under each shared card */
 .sa-block {
 border-top: 1px solid var(–border);
 padding: 8px 12px;
@@ -901,6 +901,7 @@ padding: 4px 7px;
 flex: 1;
 outline: none;
 transition: border-color 0.12s;
+min-width: 0;
 }
 .sa-input:focus { border-color: #7c3aed; }
 .sa-textarea {
@@ -916,6 +917,7 @@ outline: none;
 min-height: 40px;
 resize: vertical;
 transition: border-color 0.12s;
+min-width: 0;
 }
 .sa-textarea:focus { border-color: #7c3aed; }
 .sa-status {
@@ -1019,7 +1021,7 @@ text-align: right;
     <div class="fp-title">🔗 SHARE GAME</div>
     <div class="modal-sub" id="spMatchup" style="margin-bottom:14px;"></div>
     <div class="fp-group">
-      <div class="fp-label">Shared by *</div>
+      <div class="fp-label">Shared by (optional)</div>
       <input class="fp-input" id="spSharedBy" type="text" placeholder="Your name" autocomplete="off">
     </div>
     <div class="fp-group">
@@ -1551,7 +1553,6 @@ function isShared(gameId) {
 async function toggleShared() {
   if (!currentModalGame) return;
   const gameId = String(currentModalGame.gameId);
-  const btn = document.getElementById('mSharedBtn');
 
   const existing = sharedGamesCache.find(g => g.gameId === gameId);
   if (existing) {
@@ -1562,22 +1563,12 @@ async function toggleShared() {
       sharedGamesCache = sharedGamesCache.filter(g => g.gameId !== gameId);
       updateSharedBtn(false);
     } catch(e) { console.error('Delete error:', e); }
+    updateSharedTab();
+    if (document.getElementById('tabShared').classList.contains('active')) renderShared();
   } else {
-    // Add to Firebase
-    try {
-      const { addDoc, collection } = window.firestoreFns;
-      const data = {
-        ...currentModalGame,
-        gameId,
-        sharedAt: Date.now(),
-      };
-      const ref = await addDoc(collection(window.db, 'sharedGames'), data);
-      sharedGamesCache.push({ fbId: ref.id, ...data });
-      updateSharedBtn(true);
-    } catch(e) { console.error('Add error:', e); }
+    // ADDED: open prompt for sharedBy + notes instead of adding directly
+    openSharePrompt(currentModalGame);
   }
-  updateSharedTab();
-  if (document.getElementById('tabShared').classList.contains('active')) renderShared();
 }
 
 async function removeShared(fbId) {
@@ -1606,14 +1597,25 @@ async function shareFavGame(gameId) {
   const favs = getFavorites();
   const game = favs.find(f => f.gameId === String(gameId));
   if (!game) return;
-  currentModalGame = game;
-  await toggleShared();
-  // Update button in fav card
-  const btn = document.getElementById('fav-share-' + gameId);
-  if (btn) {
-    const shared = isShared(String(gameId));
-    btn.textContent = '🔗 ' + (shared ? 'SHARED' : 'SHARE');
-    btn.classList.toggle('shared-active', shared);
+
+  const existing = sharedGamesCache.find(g => g.gameId === String(gameId));
+  if (existing) {
+    // Remove from Firebase
+    try {
+      const { deleteDoc, doc } = window.firestoreFns;
+      await deleteDoc(doc(window.db, 'sharedGames', existing.fbId));
+      sharedGamesCache = sharedGamesCache.filter(g => g.fbId !== existing.fbId);
+      const btn = document.getElementById('fav-share-' + gameId);
+      if (btn) {
+        btn.textContent = '🔗 SHARE';
+        btn.classList.remove('shared-active');
+      }
+      updateSharedTab();
+      if (document.getElementById('tabShared').classList.contains('active')) renderShared();
+    } catch(e) { console.error('Delete error:', e); }
+  } else {
+    // ADDED: open prompt for sharedBy + notes
+    openSharePrompt(game);
   }
 }
 
@@ -1622,14 +1624,17 @@ function updateSharedTab() {
   document.getElementById('tabShared').textContent = count > 0 ? `🔗 SHARED (${count})` : '🔗 SHARED';
 }
 
+// ── renderShared: original cards PLUS appended editable Shared by + Notes block.
+//    Built using DOM operations rather than long innerHTML to be safe.
 function renderShared() {
   const el = document.getElementById('sharedContent');
   if (!sharedGamesCache.length) {
     el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>';
     return;
   }
+  // First, build the original card HTML for all entries (no editable block yet).
   el.innerHTML = sharedGamesCache.map(f => `
-    <div class="shared-card">
+    <div class="shared-card" data-fb-id="${f.fbId}">
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
@@ -1645,10 +1650,213 @@ function renderShared() {
       </div>
       <div class="shared-footer">
         <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
-        <span class="shared-by">Shared ${new Date(f.sharedAt).toLocaleDateString()}</span>
+        <span class="shared-by">${f.sharedBy ? (escapeText(f.sharedBy) + ' · ') : 'Shared '}${new Date(f.sharedAt).toLocaleDateString()}</span>
       </div>
     </div>
   `).join('');
+
+  // Then, after the cards exist in the DOM, append an editable block to each
+  // using safe DOM APIs (createElement + .value) so user-entered content can
+  // never break the page.
+  for (let i = 0; i < sharedGamesCache.length; i++) {
+    const f = sharedGamesCache[i];
+    const card = el.querySelector('.shared-card[data-fb-id="' + f.fbId + '"]');
+    if (!card) continue;
+    const block = buildEditableBlock(f);
+    // Insert before .shared-footer so it shows above flight link
+    const footer = card.querySelector('.shared-footer');
+    if (footer) {
+      card.insertBefore(block, footer);
+    } else {
+      card.appendChild(block);
+    }
+  }
+}
+
+function buildEditableBlock(f) {
+  const block = document.createElement('div');
+  block.className = 'sa-block';
+
+  const row1 = document.createElement('div');
+  row1.className = 'sa-row';
+  const lbl1 = document.createElement('span');
+  lbl1.className = 'sa-label';
+  lbl1.textContent = 'Shared by';
+  const inp1 = document.createElement('input');
+  inp1.type = 'text';
+  inp1.className = 'sa-input';
+  inp1.placeholder = 'Name';
+  inp1.value = f.sharedBy || '';
+  inp1.addEventListener('input', function(){
+    scheduleSharedFieldSave(f.fbId, 'sharedBy', inp1.value);
+  });
+  const st1 = document.createElement('span');
+  st1.className = 'sa-status';
+  st1.id = 'sa-status-' + f.fbId + '-sharedBy';
+  row1.appendChild(lbl1);
+  row1.appendChild(inp1);
+  row1.appendChild(st1);
+
+  const row2 = document.createElement('div');
+  row2.className = 'sa-row sa-row-top';
+  const lbl2 = document.createElement('span');
+  lbl2.className = 'sa-label sa-label-top';
+  lbl2.textContent = 'Notes';
+  const ta = document.createElement('textarea');
+  ta.className = 'sa-textarea';
+  ta.placeholder = 'Optional notes…';
+  ta.value = f.notes || '';
+  ta.addEventListener('input', function(){
+    scheduleSharedFieldSave(f.fbId, 'notes', ta.value);
+  });
+  const st2 = document.createElement('span');
+  st2.className = 'sa-status sa-status-top';
+  st2.id = 'sa-status-' + f.fbId + '-notes';
+  row2.appendChild(lbl2);
+  row2.appendChild(ta);
+  row2.appendChild(st2);
+
+  block.appendChild(row1);
+  block.appendChild(row2);
+  return block;
+}
+
+function escapeText(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── SHARE PROMPT ─────────────────────────────────────────────────────────────
+let pendingShareGame = null;
+let _saSaveTimers = {};
+
+function spOutsideClick(e) {
+  if (e.target === document.getElementById('sharePromptOverlay')) closeSharePrompt();
+}
+
+function openSharePrompt(game) {
+  pendingShareGame = game;
+  document.getElementById('spMatchup').textContent = game.matchup + ' · ' + game.dateLabel;
+  let lastName = '';
+  try { lastName = localStorage.getItem('mlb_last_shared_by') || ''; } catch(e) {}
+  document.getElementById('spSharedBy').value = lastName;
+  document.getElementById('spNotes').value = '';
+  document.getElementById('sharePromptOverlay').classList.add('open');
+  setTimeout(function(){
+    var el = document.getElementById('spSharedBy');
+    if (el) el.focus();
+  }, 100);
+}
+
+function closeSharePrompt() {
+  document.getElementById('sharePromptOverlay').classList.remove('open');
+  pendingShareGame = null;
+}
+
+async function submitSharePrompt() {
+  if (!pendingShareGame) return;
+  // Both fields are now optional. If empty, just save with empty strings.
+  const sharedBy = (document.getElementById('spSharedBy').value || '').trim();
+  const notes = (document.getElementById('spNotes').value || '').trim();
+  const submitBtn = document.getElementById('spSubmit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'SHARING…';
+
+  const game = pendingShareGame;
+  const gameId = String(game.gameId);
+
+  try {
+    if (sharedBy) {
+      try { localStorage.setItem('mlb_last_shared_by', sharedBy); } catch(e) {}
+    }
+
+    const { addDoc, collection } = window.firestoreFns;
+    // Build a clean payload, field by field, all serializable.
+    const data = {
+      gameId: gameId,
+      matchup: String(game.matchup || ''),
+      dateLabel: String(game.dateLabel || ''),
+      leavePDX: String(game.leavePDX || ''),
+      arriveby: String(game.arriveby || ''),
+      leaveCity: String(game.leaveCity || ''),
+      arrivePDX: String(game.arrivePDX || ''),
+      flightStr: String(game.flightStr || ''),
+      expUrl: String(game.expUrl || ''),
+      sharedBy: sharedBy,
+      notes: notes,
+      sharedAt: Date.now()
+    };
+
+    const ref = await addDoc(collection(window.db, 'sharedGames'), data);
+    sharedGamesCache.push(Object.assign({ fbId: ref.id }, data));
+  } catch(e) {
+    console.error('Share error:', e);
+    alert('Failed to share. Try again.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SHARE';
+    return;
+  }
+
+  // Close prompt and update UI. Wrap each UI step in its own try/catch so a
+  // failure in one piece can never leave the user looking at a frozen prompt.
+  try { closeSharePrompt(); } catch(e) { console.error(e); }
+  try {
+    if (currentModalGame && String(currentModalGame.gameId) === gameId) {
+      updateSharedBtn(true);
+    }
+  } catch(e) { console.error(e); }
+  try {
+    const favBtn = document.getElementById('fav-share-' + gameId);
+    if (favBtn) {
+      favBtn.textContent = '🔗 SHARED';
+      favBtn.classList.add('shared-active');
+    }
+  } catch(e) { console.error(e); }
+  try { updateSharedTab(); } catch(e) { console.error(e); }
+  try {
+    if (document.getElementById('tabShared').classList.contains('active')) {
+      renderShared();
+    }
+  } catch(e) { console.error(e); }
+
+  // Reset the SHARE button regardless
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'SHARE';
+}
+
+function scheduleSharedFieldSave(fbId, field, value) {
+  clearTimeout(_saSaveTimers[fbId + ':' + field]);
+  _saSaveTimers[fbId + ':' + field] = setTimeout(function(){
+    saveSharedField(fbId, field, value);
+  }, 600);
+}
+
+async function saveSharedField(fbId, field, value) {
+  const trimmed = (value || '').trim();
+  const statusEl = document.getElementById('sa-status-' + fbId + '-' + field);
+  try {
+    const { updateDoc, doc } = window.firestoreFns;
+    if (!updateDoc) return;
+    const update = {};
+    update[field] = trimmed;
+    await updateDoc(doc(window.db, 'sharedGames', fbId), update);
+    const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
+    if (item) item[field] = trimmed;
+    if (statusEl) {
+      statusEl.textContent = 'saved';
+      statusEl.style.color = '#3fb68c';
+      statusEl.style.opacity = '1';
+      setTimeout(function(){ statusEl.style.opacity = '0'; }, 1200);
+    }
+  } catch(e) {
+    console.error('Update error:', e);
+    if (statusEl) {
+      statusEl.textContent = 'error';
+      statusEl.style.color = '#ff5f57';
+      statusEl.style.opacity = '1';
+      setTimeout(function(){ statusEl.style.opacity = '0'; }, 2000);
+    }
+  }
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
@@ -1736,213 +1944,6 @@ async function init() {
     document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
   }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SHARED-BY + NOTES PROMPT (additions)
-// All code below is additive. The original toggleShared, renderShared, and
-// shareFavGame above are wrapped/overridden here. Deleting this whole block
-// reverts to the original behavior.
-// ═══════════════════════════════════════════════════════════════════════════════
-let pendingShareGame = null;
-let _saSaveTimers = {};
-
-function _spEscape(s) {
-  if (s == null) return '';
-  return String(s).replace(/[&<>"']/g, function(c){
-    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
-  });
-}
-
-function spOutsideClick(e) {
-  if (e.target === document.getElementById('sharePromptOverlay')) closeSharePrompt();
-}
-
-function openSharePrompt(game) {
-  pendingShareGame = game;
-  document.getElementById('spMatchup').textContent = game.matchup + ' · ' + game.dateLabel;
-  let lastName = '';
-  try { lastName = localStorage.getItem('mlb_last_shared_by') || ''; } catch(e) {}
-  document.getElementById('spSharedBy').value = lastName;
-  document.getElementById('spNotes').value = '';
-  document.getElementById('sharePromptOverlay').classList.add('open');
-  setTimeout(function(){ document.getElementById('spSharedBy').focus(); }, 100);
-}
-
-function closeSharePrompt() {
-  document.getElementById('sharePromptOverlay').classList.remove('open');
-  pendingShareGame = null;
-}
-
-async function submitSharePrompt() {
-  if (!pendingShareGame) return;
-  const sharedBy = document.getElementById('spSharedBy').value.trim();
-  const notes = document.getElementById('spNotes').value.trim();
-  if (!sharedBy) {
-    const el = document.getElementById('spSharedBy');
-    el.focus();
-    el.style.borderColor = '#ff5f57';
-    setTimeout(function(){ el.style.borderColor = ''; }, 1500);
-    return;
-  }
-  const submitBtn = document.getElementById('spSubmit');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'SHARING…';
-  try {
-    try { localStorage.setItem('mlb_last_shared_by', sharedBy); } catch(e) {}
-    const { addDoc, collection } = window.firestoreFns;
-    const gameId = String(pendingShareGame.gameId);
-    const data = Object.assign({}, pendingShareGame, {
-      gameId: gameId,
-      sharedBy: sharedBy,
-      notes: notes,
-      sharedAt: Date.now()
-    });
-    const ref = await addDoc(collection(window.db, 'sharedGames'), data);
-    sharedGamesCache.push(Object.assign({ fbId: ref.id }, data));
-    if (currentModalGame && String(currentModalGame.gameId) === gameId) updateSharedBtn(true);
-    const favBtn = document.getElementById('fav-share-' + gameId);
-    if (favBtn) {
-      favBtn.textContent = '🔗 SHARED';
-      favBtn.classList.add('shared-active');
-    }
-    updateSharedTab();
-    if (document.getElementById('tabShared').classList.contains('active')) renderShared();
-    closeSharePrompt();
-  } catch(e) {
-    console.error('Share error:', e);
-    alert('Failed to share. Try again.');
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'SHARE';
-  }
-}
-
-function scheduleSharedFieldSave(fbId, field, value) {
-  clearTimeout(_saSaveTimers[fbId + ':' + field]);
-  _saSaveTimers[fbId + ':' + field] = setTimeout(function(){
-    saveSharedField(fbId, field, value);
-  }, 600);
-}
-
-async function saveSharedField(fbId, field, value) {
-  const trimmed = (value || '').trim();
-  const statusEl = document.getElementById('sa-status-' + fbId + '-' + field);
-  if (field === 'sharedBy' && !trimmed) {
-    if (statusEl) {
-      statusEl.textContent = 'required';
-      statusEl.style.color = '#ff5f57';
-      statusEl.style.opacity = '1';
-      setTimeout(function(){ statusEl.style.opacity = '0'; }, 1500);
-    }
-    return;
-  }
-  try {
-    const { updateDoc, doc } = window.firestoreFns;
-    const update = {};
-    update[field] = trimmed;
-    await updateDoc(doc(window.db, 'sharedGames', fbId), update);
-    const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
-    if (item) item[field] = trimmed;
-    if (statusEl) {
-      statusEl.textContent = 'saved';
-      statusEl.style.color = '#3fb68c';
-      statusEl.style.opacity = '1';
-      setTimeout(function(){ statusEl.style.opacity = '0'; }, 1200);
-    }
-  } catch(e) {
-    console.error('Update error:', e);
-    if (statusEl) {
-      statusEl.textContent = 'error';
-      statusEl.style.color = '#ff5f57';
-      statusEl.style.opacity = '1';
-      setTimeout(function(){ statusEl.style.opacity = '0'; }, 2000);
-    }
-  }
-}
-
-// Wrap toggleShared so NEW shares go through the prompt; UNSHARE behavior unchanged.
-const _origToggleShared = toggleShared;
-toggleShared = async function() {
-  if (!currentModalGame) return;
-  const gameId = String(currentModalGame.gameId);
-  const existing = sharedGamesCache.find(function(g){ return g.gameId === gameId; });
-  if (existing) {
-    return _origToggleShared.apply(this, arguments);
-  } else {
-    openSharePrompt(currentModalGame);
-  }
-};
-
-// Wrap shareFavGame the same way.
-const _origShareFavGame = shareFavGame;
-shareFavGame = async function(gameId) {
-  const favs = getFavorites();
-  const game = favs.find(function(f){ return f.gameId === String(gameId); });
-  if (!game) return;
-  const existing = sharedGamesCache.find(function(g){ return g.gameId === String(gameId); });
-  if (existing) {
-    return _origShareFavGame.apply(this, arguments);
-  } else {
-    openSharePrompt(game);
-  }
-};
-
-// Override renderShared to display editable Shared by + Notes fields under each card.
-renderShared = function() {
-  const el = document.getElementById('sharedContent');
-  if (!sharedGamesCache.length) {
-    el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>';
-    return;
-  }
-  let html = '';
-  for (let i = 0; i < sharedGamesCache.length; i++) {
-    const f = sharedGamesCache[i];
-    const sb = _spEscape(f.sharedBy || '');
-    const nt = _spEscape(f.notes || '');
-    const sharedDate = new Date(f.sharedAt).toLocaleDateString();
-    const byline = f.sharedBy ? (_spEscape(f.sharedBy) + ' · ' + sharedDate) : ('Shared ' + sharedDate);
-    html += '<div class="shared-card">'
-      + '<div class="shared-head">'
-        + '<div>'
-          + '<div class="shared-matchup">' + f.matchup + '</div>'
-          + '<div class="shared-meta">' + f.dateLabel + ' · ✈ PDX ' + f.flightStr + '</div>'
-        + '</div>'
-        + '<button class="shared-remove" onclick="removeShared(\'' + f.fbId + '\')">✕</button>'
-      + '</div>'
-      + '<div class="shared-timing">'
-        + '<div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">' + f.leavePDX + ' PT</div></div>'
-        + '<div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">' + f.arriveby + '</div></div>'
-        + '<div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">' + f.leaveCity + '</div></div>'
-        + '<div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">' + f.arrivePDX + ' PT</div></div>'
-      + '</div>'
-      + '<div class="sa-block">'
-        + '<div class="sa-row">'
-          + '<span class="sa-label">Shared by</span>'
-          + '<input class="sa-input" type="text" value="' + sb + '" placeholder="Name" oninput="scheduleSharedFieldSave(\'' + f.fbId + '\',\'sharedBy\',this.value)">'
-          + '<span class="sa-status" id="sa-status-' + f.fbId + '-sharedBy"></span>'
-        + '</div>'
-        + '<div class="sa-row sa-row-top">'
-          + '<span class="sa-label sa-label-top">Notes</span>'
-          + '<textarea class="sa-textarea" placeholder="Optional notes…" oninput="scheduleSharedFieldSave(\'' + f.fbId + '\',\'notes\',this.value)">' + nt + '</textarea>'
-
-```
-      + '<span class="sa-status sa-status-top" id="sa-status-' + f.fbId + '-notes"></span>'
-    + '</div>'
-  + '</div>'
-  + '<div class="shared-footer">'
-    + '<a class="shared-expedia" href="' + f.expUrl + '" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>'
-    + '<span class="shared-by">' + byline + '</span>'
-  + '</div>'
-+ '</div>';
-```
-
-}
-el.innerHTML = html;
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// END additions
-// ═══════════════════════════════════════════════════════════════════════════════
 
 init();
 </script>
