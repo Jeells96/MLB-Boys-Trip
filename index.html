@@ -373,17 +373,17 @@ function reformatTimes(obj) {
 }
 
 // Rebuild the HTML for a single allGames entry after a TZ change
+// Uses cardStore lookup on click — NO time strings embedded in onclick
 function rebuildCardHTML(g) {
   reformatTimes(g);
-  const dispTZ   = getDisplayTZ(g.homeTZ || 'America/Los_Angeles');
-  const pdxDispTZ = getDisplayTZ('America/Los_Angeles');
   const tz = tzSetting === 'et' ? 'ET' : 'PT';
   const pid = 'price-' + g.gameId;
   let savedPrice = ''; try { savedPrice = localStorage.getItem(pid)||''; } catch(e) {}
-  // matchup stored as "ARI @ COL", display as "ARI@COL" on small card
   const matchupSmall = (g.matchup||'').replace(' @ ','@');
   const cid = 'c' + g.gameId;
-  g.html = `<div class="game-card" onclick="openModal('${g.matchup}','${g.dateLabel}','${g.leavePDX}','${g.arriveby}','${g.leaveCity}','${g.arrivePDX}','${g.flightStr}','${g.expUrl}','${g.gameId}','${g.startDisplay}')">
+  // Update cardStore with fresh reformatted times
+  cardStore[cid] = g;
+  g.html = `<div class="game-card" onclick="cardClick('${cid}')">
       <div class="card-head"><div class="matchup">${matchupSmall}</div><div class="card-meta"><strong>${g.homeCity}</strong><br>${g.startDisplay}</div></div>
       <div class="card-flight"><span class="flight-badge">✈${g.flightStr||''}</span><a class="expedia-btn" href="${g.expUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">$$</a></div>
       <div class="card-timing">
@@ -393,6 +393,14 @@ function rebuildCardHTML(g) {
       </div>
       <div class="card-price"><span class="p-label">$</span><input class="p-input" type="text" inputmode="decimal" placeholder="price" value="${savedPrice}" onclick="event.stopPropagation()" onchange="savePrice('${pid}',this.value)"></div>
     </div>`;
+}
+
+// Card click handler — always reads fresh times from cardStore (reformatTimes called on click)
+function cardClick(cid) {
+  const g = cardStore[cid];
+  if (!g) return;
+  reformatTimes(g);  // ensure times are current for the active TZ setting
+  openModalFromGame(g);
 }
 
 // ─── TZ SETTING ──────────────────────────────────────────────────────────────
@@ -417,15 +425,9 @@ function setTZ(val) {
   // Re-render active tab if it shows times
   if (document.getElementById('tabFavs').classList.contains('active')) renderFavs();
   if (document.getElementById('tabShared').classList.contains('active')) renderShared();
-  // If modal is open, refresh its times too
-  if (currentModalGame && currentModalGame._msStart) {
-    reformatTimes(currentModalGame);
-    const tz = tzSetting === 'et' ? 'ET' : 'PT';
-    document.getElementById('mTiming').innerHTML = `
-      <div class="mt-item"><div class="mt-label">Leave PDX</div><div class="mt-val y">${currentModalGame.leavePDX} ${tz}</div></div>
-      <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${currentModalGame.arriveby}</div></div>
-      <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${currentModalGame.leaveCity}</div></div>
-      <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${currentModalGame.arrivePDX} ${tz}</div></div>`;
+  // If modal is open, refresh its times live
+  if (currentModalGame && document.getElementById('modalOverlay').classList.contains('open')) {
+    openModalFromGame(currentModalGame);
   }
 }
 function initTZSetting() {
@@ -487,20 +489,29 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ───────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
-  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay || '', _msStart, _msArr, _msLeavePDX, _msLeaveCity, _msArrivePDX, homeTZ, flightHours };
-  document.getElementById('mMatchup').textContent = matchup;
-  document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
-  document.getElementById('mLink').href = expUrl;
+// Primary modal opener — takes a game object, always reformats times first
+function openModalFromGame(g) {
+  reformatTimes(g);
+  currentModalGame = g;
   const tz = tzSetting === 'et' ? 'ET' : 'PT';
+  document.getElementById('mMatchup').textContent = g.matchup;
+  document.getElementById('mSub').textContent = `${g.dateLabel} · ✈ PDX ${g.flightStr}`;
+  document.getElementById('mLink').href = g.expUrl;
   document.getElementById('mTiming').innerHTML = `
-    <div class="mt-item"><div class="mt-label">Leave PDX</div><div class="mt-val y">${leavePDX} ${tz}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${arriveby}</div></div>
-    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${leaveCity}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${arrivePDX} ${tz}</div></div>`;
-  updateFavBtn(isFavorited(gameId));
-  updateSharedBtn(isShared(gameId));
+    <div class="mt-item"><div class="mt-label">Leave PDX</div><div class="mt-val y">${g.leavePDX} ${tz}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${g.arriveby}</div></div>
+    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${g.leaveCity}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${g.arrivePDX} ${tz}</div></div>`;
+  updateFavBtn(isFavorited(g.gameId));
+  updateSharedBtn(isShared(g.gameId));
   document.getElementById('modalOverlay').classList.add('open');
+}
+// Legacy openModal kept so nothing breaks if called from old favorites data
+function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
+  const g = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay||'' };
+  // Try to find in cardStore for fresh times
+  const cid = 'c' + gameId;
+  openModalFromGame(cardStore[cid] || g);
 }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
@@ -590,9 +601,15 @@ function buildCard(dateStr, game) {
   let savedPrice = '';
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
+  // Store in cardStore so cardClick can look up fresh times without stale onclick args
+  const cid = 'c' + game.gamePk;
+  const gameEntry = { gameId: String(game.gamePk), matchup: matchupFull, matchupSmall: matchup,
+    dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay,
+    homeCity, homeTZ, flightHours, _msStart, _msArr, _msLeavePDX, _msLeaveCity, _msArrivePDX };
+  cardStore[cid] = gameEntry;
+
   const html = `
-    <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}','${startDisplay}')">
+    <div class="game-card" onclick="cardClick('${cid}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay}</div>
@@ -619,7 +636,7 @@ function buildCard(dateStr, game) {
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
 
 // ─── FILTER STATE ─────────────────────────────────────────────────────────────
-let allGames = [], selectedCodes = new Set();
+let allGames = [], selectedCodes = new Set(), cardStore = {};
 
 function render() {
   const main = document.getElementById('main');
@@ -745,13 +762,24 @@ function updateFavBtn(saved) {
   btn.textContent = saved ? '⭐ SAVED — TAP TO REMOVE' : '⭐ SAVE TO FAVORITES';
   btn.classList.toggle('saved', saved);
 }
+
+function openFavModal(gameId) {
+  // Try cardStore first (has raw ms), fall back to favorites localStorage
+  const cid = 'c' + gameId;
+  if (cardStore[cid]) { openModalFromGame(cardStore[cid]); return; }
+  const favs = getFavorites();
+  const f = favs.find(x => x.gameId === String(gameId));
+  if (f) openModalFromGame(reformatTimes(f) || f);
+}
+
 function renderFavs() {
   const favs = getFavorites(), el = document.getElementById('favsContent');
   if (!favs.length) { el.innerHTML = '<div class="fav-empty">No favorites yet.<br>Open any game card and tap<br>⭐ Save to Favorites.</div>'; return; }
   const tz = tzSetting === 'et' ? 'ET' : 'PT';
   el.innerHTML = favs.map(f => {
     const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
-    return `<div class="fav-card" id="fav-card-${f.gameId}">
+    const fObj = reformatTimes(f) || f;
+    return `<div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavModal('${f.gameId}')">
       <div class="fav-head">
         <div><div class="fav-matchup">${f.matchup}</div><div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}</div></div>
         <button class="fav-remove" onclick="removeFav('${f.gameId}')">✕</button>
@@ -1009,7 +1037,7 @@ async function reloadGames() {
     const games = await fetchGamesByDays(activeDays);
     dot.className = 'status-dot ready';
     if (!games.length) { document.getElementById('main').innerHTML = '<div class="empty-state">No upcoming games found.</div>'; return; }
-    const codes = new Set(); allGames = [];
+    const codes = new Set(); allGames = []; cardStore = {};
     for (const {date, game} of games) {
       const result = buildCard(date, game); if (!result) continue;
       codes.add(result.homeCode);
@@ -1026,7 +1054,7 @@ async function init() {
     const games = await fetchGamesByDays(activeDays);
     dot.className = 'status-dot ready';
     if (!games.length) { document.getElementById('main').innerHTML = '<div class="empty-state">No remaining games found.</div>'; return; }
-    const codes = new Set(); allGames = [];
+    const codes = new Set(); allGames = []; cardStore = {};
     for (const {date, game} of games) {
       const result = buildCard(date, game); if (!result) continue;
       codes.add(result.homeCode);
