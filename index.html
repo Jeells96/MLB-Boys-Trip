@@ -1035,6 +1035,28 @@ text-align: right;
   </div>
 </div>
 
+<!-- Edit Shared Sheet -->
+
+<div class="fp-overlay" id="editSharedOverlay" onclick="esOutsideClick(event)">
+  <div class="fp-sheet">
+    <div class="fp-handle"></div>
+    <div class="fp-title">✏️ EDIT SHARED</div>
+    <div class="modal-sub" id="esMatchup" style="margin-bottom:14px;"></div>
+    <div class="fp-group">
+      <div class="fp-label">Shared by</div>
+      <input class="fp-input" id="esSharedBy" type="text" placeholder="Name" autocomplete="off">
+    </div>
+    <div class="fp-group">
+      <div class="fp-label">Notes</div>
+      <textarea class="sp-textarea" id="esNotes" placeholder="Optional notes…" rows="3"></textarea>
+    </div>
+    <div class="fp-actions">
+      <button class="fp-clear" onclick="closeSharedEdit()">CANCEL</button>
+      <button class="sp-apply" id="esSubmit" onclick="submitSharedEdit()">SAVE</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
@@ -1091,8 +1113,8 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId) {
-  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl };
+function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
+  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay || '' };
   document.getElementById('mMatchup').textContent = matchup;
   document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
   document.getElementById('mLink').href = expUrl;
@@ -1197,7 +1219,7 @@ function buildCard(dateStr, game) {
   // Inline card (small)
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}','${startDisplay}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay}</div>
@@ -1636,14 +1658,16 @@ function renderShared() {
     const dateStr = new Date(f.sharedAt).toLocaleDateString();
     const byline = f.sharedBy ? (f.sharedBy + ' · ' + dateStr) : ('Shared ' + dateStr);
     const notesLine = f.notes ? `<div class="shared-meta" style="padding:6px 12px;border-top:1px solid var(--border);background:#15131f;">📝 ${f.notes}</div>` : '';
+    const startLine = f.startDisplay ? ` · 🕒 ${f.startDisplay}` : '';
+    const priceBadge = f.price ? `<span style="color:var(--accent);font-weight:700;margin-right:8px;">$${f.price}</span>` : '';
     return `
-    <div class="shared-card">
+    <div class="shared-card" onclick="openSharedEdit('${f.fbId}')">
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
-          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}</div>
+          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${startLine}</div>
         </div>
-        <button class="shared-remove" onclick="removeShared('${f.fbId}')">✕</button>
+        <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
       </div>
       <div class="shared-timing">
         <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${f.leavePDX} PT</div></div>
@@ -1653,7 +1677,8 @@ function renderShared() {
       </div>
       ${notesLine}
       <div class="shared-footer">
-        <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
+        <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ FLIGHTS ↗</a>
+        ${priceBadge}
         <span class="shared-by">${byline}</span>
       </div>
     </div>
@@ -1706,17 +1731,22 @@ async function submitSharePrompt() {
     }
 
     const { addDoc, collection } = window.firestoreFns;
+    // Read the price the user typed for this game (stored in localStorage by savePrice).
+    let price = '';
+    try { price = localStorage.getItem('price-' + gameId) || ''; } catch(e) {}
     // Build a clean payload, field by field, all serializable.
     const data = {
       gameId: gameId,
       matchup: String(game.matchup || ''),
       dateLabel: String(game.dateLabel || ''),
+      startDisplay: String(game.startDisplay || ''),
       leavePDX: String(game.leavePDX || ''),
       arriveby: String(game.arriveby || ''),
       leaveCity: String(game.leaveCity || ''),
       arrivePDX: String(game.arrivePDX || ''),
       flightStr: String(game.flightStr || ''),
       expUrl: String(game.expUrl || ''),
+      price: String(price || ''),
       sharedBy: sharedBy,
       notes: notes,
       sharedAt: Date.now()
@@ -1792,6 +1822,59 @@ async function saveSharedField(fbId, field, value) {
       setTimeout(function(){ statusEl.style.opacity = '0'; }, 2000);
     }
   }
+}
+
+// ─── EDIT SHARED (tap a shared card to edit Shared by + Notes) ───────────────
+let editingFbId = null;
+
+function openSharedEdit(fbId) {
+  const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
+  if (!item) return;
+  editingFbId = fbId;
+  document.getElementById('esMatchup').textContent = item.matchup + ' · ' + item.dateLabel;
+  document.getElementById('esSharedBy').value = item.sharedBy || '';
+  document.getElementById('esNotes').value = item.notes || '';
+  document.getElementById('editSharedOverlay').classList.add('open');
+}
+
+function closeSharedEdit() {
+  document.getElementById('editSharedOverlay').classList.remove('open');
+  editingFbId = null;
+}
+
+function esOutsideClick(e) {
+  if (e.target === document.getElementById('editSharedOverlay')) closeSharedEdit();
+}
+
+async function submitSharedEdit() {
+  if (!editingFbId) return;
+  const fbId = editingFbId;
+  const sharedBy = (document.getElementById('esSharedBy').value || '').trim();
+  const notes = (document.getElementById('esNotes').value || '').trim();
+  const submitBtn = document.getElementById('esSubmit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'SAVING…';
+  try {
+    const { updateDoc, doc } = window.firestoreFns;
+    if (updateDoc) {
+      await updateDoc(doc(window.db, 'sharedGames', fbId), { sharedBy: sharedBy, notes: notes });
+    }
+    const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
+    if (item) {
+      item.sharedBy = sharedBy;
+      item.notes = notes;
+    }
+  } catch(e) {
+    console.error('Edit save error:', e);
+    alert('Failed to save. Try again.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SAVE';
+    return;
+  }
+  try { closeSharedEdit(); } catch(e) {}
+  try { renderShared(); } catch(e) { console.error(e); }
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'SAVE';
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
