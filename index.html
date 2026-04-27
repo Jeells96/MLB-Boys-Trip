@@ -8,165 +8,935 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0c0f; --card: #161b22; --border: #21262d;
-    --accent: #e8c56a; --accent2: #5ca8ff; --green: #3fb68c;
-    --red: #ff5f57; --text: #e6edf3; --muted: #7d8590; --chip: #1c2128;
+    --bg: #0a0c0f;
+    --card: #161b22;
+    --border: #21262d;
+    --accent: #e8c56a;
+    --accent2: #5ca8ff;
+    --green: #3fb68c;
+    --red: #ff5f57;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --chip: #1c2128;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-  .header { background: #0d1117; border-bottom: 1px solid var(--border); padding: 10px 12px 8px; position: sticky; top: 0; z-index: 100; }
-  .header-top { display: flex; align-items: center; margin-bottom: 8px; }
-  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--accent); line-height: 1; }
-  .subtitle { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 0.4px; margin-top: 1px; }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); margin-left: auto; flex-shrink: 0; }
-  .status-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
-  .status-dot.ready { background: var(--green); }
-  .status-dot.error { background: var(--red); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-  .filter-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .filter-wrap::-webkit-scrollbar { display: none; }
-  .filter-bar { display: flex; gap: 4px; padding-bottom: 2px; white-space: nowrap; align-items: center; }
-  .chip { background: var(--chip); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 20px; cursor: pointer; transition: all 0.12s; user-select: none; letter-spacing: 0.3px; flex-shrink: 0; }
-  .chip:active { transform: scale(0.94); }
-  .chip.active { background: #1a3a2a; border-color: var(--green); color: #fff; font-weight: 600; }
-  .chip.all.active { background: #1a2a3a; border-color: var(--accent2); color: #fff; font-weight: 600; }
-  .divider-pill { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
-  main { padding: 8px 8px 40px; }
-  .date-divider { font-family: 'Bebas Neue', sans-serif; font-size: 12px; letter-spacing: 2px; color: var(--muted); padding: 12px 2px 5px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-  .games-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 2px; }
-  .game-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: border-color 0.12s; -webkit-tap-highlight-color: transparent; }
-  .game-card:active { border-color: var(--accent); }
-  .card-head { padding: 6px 7px 4px; }
-  .matchup { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 0.8px; line-height: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card-meta { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
-  .card-meta strong { color: var(--text); font-weight: 500; }
-  .card-flight { display: flex; align-items: center; justify-content: space-between; padding: 3px 7px; border-top: 1px solid var(--border); gap: 3px; }
-  .flight-badge { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--accent2); white-space: nowrap; }
-  .expedia-btn { display: inline-flex; align-items: center; background: var(--accent); color: #000; font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 4px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
-  .card-timing { border-top: 1px solid var(--border); padding: 4px 7px; display: flex; flex-direction: column; gap: 2px; }
-  .t-row { display: flex; justify-content: space-between; align-items: baseline; gap: 2px; }
-  .t-label { font-family: 'DM Mono', monospace; font-size: 7.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; flex-shrink: 0; }
-  .t-val { font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 500; text-align: right; white-space: nowrap; }
-  .t-val.y { color: var(--accent); } .t-val.g { color: var(--green); } .t-val.r { color: var(--red); }
-  .card-price { border-top: 1px solid var(--border); padding: 3px 7px 4px; display: flex; align-items: center; gap: 3px; }
-  .p-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); }
-  .p-input { background: transparent; border: none; border-bottom: 1px solid var(--border); color: #e6edf3 !important; -webkit-text-fill-color: #e6edf3 !important; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; width: 100%; outline: none; padding: 1px 2px; transition: border-color 0.12s; opacity: 1; }
-  .p-input:focus { border-bottom-color: var(--accent); }
-  .p-input::placeholder { color: #3a4150; -webkit-text-fill-color: #3a4150; }
-  .loading-state, .empty-state, .error-state { text-align: center; padding: 50px 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; }
-  .error-state { color: var(--red); }
-  .game-count { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); padding: 4px 2px 2px; }
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 200; align-items: flex-end; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal-sheet { background: #161b22; border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 18px 20px 38px; width: 100%; max-width: 480px; animation: slideUp 0.2s ease; }
-  @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
-  .modal-matchup { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 2px; color: var(--text); margin-bottom: 2px; }
-  .modal-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 14px; }
-  .modal-timing { background: #1c2128; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
-  .mt-item { display: flex; flex-direction: column; gap: 3px; }
-  .mt-label { font-family:'DM Mono',monospace; font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
-  .mt-val { font-family:'DM Mono',monospace; font-size:11px; font-weight:500; }
-  .mt-val.y { color:var(--accent); } .mt-val.g { color:var(--green); } .mt-val.r { color:var(--red); }
-  .modal-expedia-btn { display: block; background: var(--accent); color: #000; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1.5px; text-align: center; padding: 13px 16px; border-radius: 12px; text-decoration: none; margin-bottom: 8px; transition: opacity 0.12s; }
-  .modal-expedia-btn:active { opacity: 0.8; }
-  .modal-link-note { text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 16px; }
-  .modal-close { display: block; text-align: center; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
-  .day-bar { display: flex; gap: 4px; margin-bottom: 8px; overflow-x: auto; scrollbar-width: none; }
-  .day-bar::-webkit-scrollbar { display: none; }
-  .day-chip { background: var(--chip); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 7px; border-radius: 20px; cursor: pointer; user-select: none; flex-shrink: 0; transition: all 0.12s; }
-  .day-chip:active { transform: scale(0.94); }
-  .day-chip.active { background: #1a2a3a; border-color: var(--accent2); color: #fff; font-weight: 600; }
-  .filter-panel-btn { display: flex; align-items: center; gap: 4px; background: var(--chip); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; cursor: pointer; user-select: none; white-space: nowrap; flex-shrink: 0; transition: all 0.12s; margin-left: auto; }
-  .filter-panel-btn.has-filters { background: #1a3a2a; border-color: var(--green); color: #fff; }
-  .fp-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 300; align-items: flex-end; justify-content: center; }
-  .fp-overlay.open { display: flex; }
-  .fp-sheet { background: #161b22; border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 18px 20px 38px; width: 100%; max-width: 480px; animation: slideUp 0.2s ease; }
-  .fp-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
-  .fp-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1.5px; color: var(--text); margin-bottom: 16px; }
-  .fp-group { margin-bottom: 14px; }
-  .fp-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
-  .fp-row { display: flex; gap: 8px; align-items: center; }
-  .fp-input { background: #0a0c0f; border: 1px solid var(--border); border-radius: 6px; color: #e6edf3; font-family: 'DM Mono', monospace; font-size: 12px; padding: 6px 10px; width: 100%; outline: none; transition: border-color 0.12s; }
-  .fp-input:focus { border-color: var(--accent2); }
-  .fp-input::placeholder { color: #3a4150; }
-  .fp-sep { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; flex-shrink: 0; }
-  .fp-actions { display: flex; gap: 8px; margin-top: 18px; }
-  .fp-apply { flex: 1; background: var(--green); color: #000; font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; border: none; border-radius: 10px; padding: 10px; cursor: pointer; transition: opacity 0.12s; }
-  .fp-apply:active { opacity: 0.8; }
-  .fp-clear { background: var(--chip); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: opacity 0.12s; }
-  .tab-bar { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 0; }
-  .tab { flex: 1; text-align: center; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.5px; color: var(--muted); padding: 8px 4px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .fav-empty { text-align: center; padding: 50px 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.8; }
-  .fav-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
-  .fav-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; }
-  .fav-matchup { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1.5px; color: var(--text); }
-  .fav-date { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
-  .fav-remove { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--red); font-size: 14px; padding: 4px 8px; cursor: pointer; flex-shrink: 0; }
-  .fav-timing { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); background: #1c2128; }
-  .fav-t-item { display: flex; flex-direction: column; gap: 2px; }
-  .fav-t-label { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
-  .fav-t-val { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; }
-  .fav-t-val.y { color: var(--accent); } .fav-t-val.g { color: var(--green); } .fav-t-val.r { color: var(--red); }
-  .fav-footer { display: flex; align-items: center; gap: 8px; padding: 7px 12px 8px; border-top: 1px solid var(--border); }
-  .fav-expedia { display: inline-flex; align-items: center; background: var(--accent); color: #000; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 700; padding: 5px 10px; border-radius: 6px; text-decoration: none; white-space: nowrap; }
-  .fav-price-wrap { display: flex; align-items: center; gap: 4px; flex: 1; }
-  .fav-price-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
-  .fav-price-input { background: #0a0c0f; border: 1px solid var(--border); border-radius: 4px; color: #e6edf3; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; width: 80px; outline: none; padding: 3px 6px; }
-  .fav-price-input:focus { border-color: var(--accent); }
-  .fav-price-input::placeholder { color: #3a4150; }
-  .modal-fav-btn { display: block; width: 100%; text-align: center; font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--chip); color: var(--muted); cursor: pointer; margin-bottom: 8px; transition: all 0.15s; }
-  .modal-fav-btn.saved { background: #2a1a3a; border-color: #c084fc; color: #c084fc; }
-  .shared-card { background: var(--card); border: 1px solid #7c3aed44; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
-  .shared-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; }
-  .shared-matchup { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1.5px; color: var(--text); }
-  .shared-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
-  .shared-remove { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--red); font-size: 14px; padding: 4px 8px; cursor: pointer; flex-shrink: 0; }
-  .shared-timing { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); background: #1c1a2e; }
-  .shared-t-item { display: flex; flex-direction: column; gap: 2px; }
-  .shared-t-label { font-family:'DM Mono',monospace; font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; }
-  .shared-t-val { font-family:'DM Mono',monospace; font-size:10px; font-weight:500; }
-  .shared-t-val.y { color:var(--accent); } .shared-t-val.g { color:var(--green); } .shared-t-val.r { color:var(--red); }
-  .shared-footer { display: flex; align-items: center; gap: 8px; padding: 7px 12px 8px; border-top: 1px solid var(--border); }
-  .shared-expedia { display: inline-flex; align-items: center; background: var(--accent); color: #000; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 700; padding: 5px 10px; border-radius: 6px; text-decoration: none; white-space: nowrap; }
-  .shared-by { font-family: 'DM Mono', monospace; font-size: 9px; color: #9d7ef5; margin-left: auto; }
-  .modal-shared-btn { display: block; width: 100%; text-align: center; font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--chip); color: var(--muted); cursor: pointer; margin-bottom: 8px; transition: all 0.15s; }
-  .modal-shared-btn.saved { background: #2a1a4a; border-color: #7c3aed; color: #9d7ef5; }
-  .shared-empty { text-align: center; padding: 50px 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.8; }
-  .shared-loading { text-align: center; padding: 30px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; }
-  .fav-share-btn { background: var(--chip); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; padding: 5px 8px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.12s; }
-  .fav-share-btn.shared-active { border-color: #7c3aed; color: #9d7ef5; background: #2a1a4a; }
-  .sp-apply { flex: 1; background: #7c3aed; color: #fff; font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; border: none; border-radius: 10px; padding: 10px; cursor: pointer; transition: opacity 0.12s; }
-  .sp-apply:active { opacity: 0.8; }
-  .sp-apply:disabled { opacity: 0.4; }
-  .sp-textarea { background: #0a0c0f; border: 1px solid var(--border); border-radius: 6px; color: #e6edf3; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 10px; width: 100%; outline: none; resize: vertical; min-height: 60px; }
-  .sp-textarea:focus { border-color: #7c3aed; }
-  .sp-textarea::placeholder { color: #3a4150; }
-  .sa-block { border-top: 1px solid var(--border); padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; background: #15131f; }
-  .sa-row { display: flex; align-items: center; gap: 6px; }
-  .sa-label { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; min-width: 60px; }
-  .sa-input { background: #0a0c0f; border: 1px solid var(--border); border-radius: 5px; color: #e6edf3; font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 7px; flex: 1; outline: none; transition: border-color 0.12s; min-width: 0; }
-  .sa-input:focus { border-color: #7c3aed; }
-  .sa-textarea { background: #0a0c0f; border: 1px solid var(--border); border-radius: 5px; color: #e6edf3; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 4px 7px; flex: 1; outline: none; min-height: 40px; resize: vertical; transition: border-color 0.12s; min-width: 0; }
-  .sa-textarea:focus { border-color: #7c3aed; }
-  .sa-status { font-family: 'DM Mono', monospace; font-size: 8px; opacity: 0; transition: opacity 0.2s; flex-shrink: 0; min-width: 40px; text-align: right; }
-  /* ── SETTINGS (NEW) ── */
-  .settings-section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
-  .settings-section-title { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; padding: 8px 14px 6px; border-bottom: 1px solid var(--border); }
-  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border); }
-  .settings-row:last-child { border-bottom: none; }
-  .settings-row:active { background: #1c2128; }
-  .settings-row-left { display: flex; flex-direction: column; gap: 3px; }
-  .settings-row-label { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); font-weight: 500; }
-  .settings-row-sub { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 0.2px; }
-  .settings-check { font-size: 14px; color: var(--green); flex-shrink: 0; transition: opacity 0.15s; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+/* ── HEADER ── */
+.header {
+background: #0d1117;
+border-bottom: 1px solid var(–border);
+padding: 10px 12px 8px;
+position: sticky;
+top: 0;
+z-index: 100;
+}
+.header-top {
+display: flex;
+align-items: center;
+margin-bottom: 8px;
+}
+.logo {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 16px;
+letter-spacing: 1px;
+color: var(–accent);
+line-height: 1;
+}
+.subtitle {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+letter-spacing: 0.4px;
+margin-top: 1px;
+}
+.subtitle {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+letter-spacing: 0.4px;
+}
+.status-dot {
+width: 6px; height: 6px;
+border-radius: 50%;
+background: var(–muted);
+margin-left: auto;
+flex-shrink: 0;
+}
+.status-dot.loading { background: var(–accent); animation: pulse 1s infinite; }
+.status-dot.ready   { background: var(–green); }
+.status-dot.error   { background: var(–red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── FILTER BAR ── */
+.filter-hint {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+margin-bottom: 5px;
+letter-spacing: 0.3px;
+}
+.filter-hint em { color: var(–accent2); font-style: normal; }
+.filter-wrap {
+overflow-x: auto;
+-webkit-overflow-scrolling: touch;
+scrollbar-width: none;
+}
+.filter-wrap::-webkit-scrollbar { display: none; }
+.filter-bar {
+display: flex;
+gap: 4px;
+padding-bottom: 2px;
+white-space: nowrap;
+align-items: center;
+}
+.chip {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 3px 8px;
+border-radius: 20px;
+cursor: pointer;
+transition: all 0.12s;
+user-select: none;
+letter-spacing: 0.3px;
+flex-shrink: 0;
+}
+.chip:active { transform: scale(0.94); }
+.chip.active {
+background: #1a3a2a;
+border-color: var(–green);
+color: #fff;
+font-weight: 600;
+}
+.chip.all.active {
+background: #1a2a3a;
+border-color: var(–accent2);
+color: #fff;
+font-weight: 600;
+}
+.divider-pill {
+width: 1px; height: 14px;
+background: var(–border);
+flex-shrink: 0;
+margin: 0 2px;
+}
+
+/* ── MAIN ── */
+main { padding: 8px 8px 40px; }
+
+/* ── DATE DIVIDER ── */
+.date-divider {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 12px;
+letter-spacing: 2px;
+color: var(–muted);
+padding: 12px 2px 5px;
+border-bottom: 1px solid var(–border);
+margin-bottom: 6px;
+}
+.date-divider span { color: var(–accent); margin-right: 5px; }
+
+/* ── 3-COLUMN GRID ── */
+.games-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 5px;
+margin-bottom: 2px;
+}
+
+/* ── GAME CARD ── */
+.game-card {
+background: var(–card);
+border: 1px solid var(–border);
+border-radius: 8px;
+overflow: hidden;
+display: flex;
+flex-direction: column;
+cursor: pointer;
+transition: border-color 0.12s;
+-webkit-tap-highlight-color: transparent;
+}
+.game-card:active { border-color: var(–accent); }
+
+.card-head { padding: 6px 7px 4px; }
+.matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 13px;
+letter-spacing: 0.8px;
+line-height: 1;
+color: var(–text);
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.card-meta {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–muted);
+margin-top: 2px;
+line-height: 1.4;
+}
+.card-meta strong { color: var(–text); font-weight: 500; }
+
+/* Flight + Expedia row */
+.card-flight {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 3px 7px 3px;
+border-top: 1px solid var(–border);
+gap: 3px;
+}
+.flight-badge {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–accent2);
+white-space: nowrap;
+}
+.expedia-btn {
+display: inline-flex;
+align-items: center;
+background: var(–accent);
+color: #000;
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+font-weight: 700;
+padding: 2px 5px;
+border-radius: 4px;
+text-decoration: none;
+white-space: nowrap;
+letter-spacing: 0.2px;
+flex-shrink: 0;
+}
+.expedia-btn:active { opacity: 0.75; }
+
+/* Timing rows */
+.card-timing {
+border-top: 1px solid var(–border);
+padding: 4px 7px;
+display: flex;
+flex-direction: column;
+gap: 2px;
+}
+.t-row {
+display: flex;
+justify-content: space-between;
+align-items: baseline;
+gap: 2px;
+}
+.t-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 7.5px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.3px;
+white-space: nowrap;
+flex-shrink: 0;
+}
+.t-val {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+font-weight: 500;
+text-align: right;
+white-space: nowrap;
+}
+.t-val.y { color: var(–accent); }
+.t-val.g { color: var(–green); }
+.t-val.r { color: var(–red); }
+
+/* Price row */
+.card-price {
+border-top: 1px solid var(–border);
+padding: 3px 7px 4px;
+display: flex;
+align-items: center;
+gap: 3px;
+}
+.p-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+}
+.p-input {
+background: transparent;
+border: none;
+border-bottom: 1px solid var(–border);
+color: #e6edf3 !important;
+-webkit-text-fill-color: #e6edf3 !important;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 500;
+width: 100%;
+outline: none;
+padding: 1px 2px;
+transition: border-color 0.12s;
+opacity: 1;
+}
+.p-input:focus { border-bottom-color: var(–accent); }
+.p-input::placeholder { color: #3a4150; -webkit-text-fill-color: #3a4150; }
+
+/* States */
+.loading-state, .empty-state, .error-state {
+text-align: center;
+padding: 50px 20px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+}
+.error-state { color: var(–red); }
+.game-count {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+padding: 4px 2px 2px;
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,0.72);
+z-index: 200;
+align-items: flex-end;
+justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+background: #161b22;
+border: 1px solid var(–border);
+border-bottom: none;
+border-radius: 18px 18px 0 0;
+padding: 18px 20px 38px;
+width: 100%;
+max-width: 480px;
+animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-handle {
+width: 36px; height: 4px;
+background: var(–border);
+border-radius: 2px;
+margin: 0 auto 16px;
+}
+.modal-matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 30px;
+letter-spacing: 2px;
+color: var(–text);
+margin-bottom: 2px;
+}
+.modal-sub {
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+margin-bottom: 14px;
+}
+.modal-timing {
+background: #1c2128;
+border-radius: 10px;
+padding: 10px 14px;
+margin-bottom: 14px;
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 10px;
+}
+.mt-item { display: flex; flex-direction: column; gap: 3px; }
+.mt-label { font-family:‘DM Mono’,monospace; font-size:8px; color:var(–muted); text-transform:uppercase; letter-spacing:.4px; }
+.mt-val   { font-family:‘DM Mono’,monospace; font-size:12px; font-weight:500; }
+.mt-val.y { color:var(–accent); }
+.mt-val.g { color:var(–green); }
+.mt-val.r { color:var(–red); }
+.modal-expedia-btn {
+display: block;
+background: var(–accent);
+color: #000;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 18px;
+letter-spacing: 1.5px;
+text-align: center;
+padding: 13px 16px;
+border-radius: 12px;
+text-decoration: none;
+margin-bottom: 8px;
+transition: opacity 0.12s;
+}
+.modal-expedia-btn:active { opacity: 0.8; }
+.modal-link-note {
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-bottom: 16px;
+}
+.modal-close {
+display: block;
+text-align: center;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+cursor: pointer;
+padding: 8px;
+border: 1px solid var(–border);
+border-radius: 8px;
+}
+
+/* ── DAY SELECTOR ── */
+.day-bar {
+display: flex;
+gap: 4px;
+margin-bottom: 8px;
+}
+.day-chip {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 3px 7px;
+border-radius: 20px;
+cursor: pointer;
+user-select: none;
+flex-shrink: 0;
+transition: all 0.12s;
+}
+.day-chip:active { transform: scale(0.94); }
+.day-chip.active {
+background: #1a2a3a;
+border-color: var(–accent2);
+color: #fff;
+font-weight: 600;
+}
+
+/* ── FILTER PANEL ── */
+.filter-panel-btn {
+display: flex;
+align-items: center;
+gap: 4px;
+background: var(–chip);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+padding: 3px 8px;
+cursor: pointer;
+user-select: none;
+white-space: nowrap;
+flex-shrink: 0;
+transition: all 0.12s;
+margin-left: auto;
+}
+.filter-panel-btn.has-filters {
+background: #1a3a2a;
+border-color: var(–green);
+color: #fff;
+}
+.filter-panel-btn:active { opacity: 0.7; }
+
+/* Filter modal */
+.fp-overlay {
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,0.72);
+z-index: 300;
+align-items: flex-end;
+justify-content: center;
+}
+.fp-overlay.open { display: flex; }
+.fp-sheet {
+background: #161b22;
+border: 1px solid var(–border);
+border-bottom: none;
+border-radius: 18px 18px 0 0;
+padding: 18px 20px 38px;
+width: 100%;
+max-width: 480px;
+animation: slideUp 0.2s ease;
+}
+.fp-handle {
+width: 36px; height: 4px;
+background: var(–border);
+border-radius: 2px;
+margin: 0 auto 16px;
+}
+.fp-title {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 20px;
+letter-spacing: 1.5px;
+color: var(–text);
+margin-bottom: 16px;
+}
+.fp-group {
+margin-bottom: 14px;
+}
+.fp-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.4px;
+margin-bottom: 6px;
+}
+.fp-row {
+display: flex;
+gap: 8px;
+align-items: center;
+}
+.fp-input {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+padding: 6px 10px;
+width: 100%;
+outline: none;
+transition: border-color 0.12s;
+}
+.fp-input:focus { border-color: var(–accent2); }
+.fp-input::placeholder { color: #3a4150; }
+.fp-sep {
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+flex-shrink: 0;
+}
+.fp-actions {
+display: flex;
+gap: 8px;
+margin-top: 18px;
+}
+.fp-apply {
+flex: 1;
+background: var(–green);
+color: #000;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 16px;
+letter-spacing: 1px;
+border: none;
+border-radius: 10px;
+padding: 10px;
+cursor: pointer;
+transition: opacity 0.12s;
+}
+.fp-apply:active { opacity: 0.8; }
+.fp-clear {
+background: var(–chip);
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+border-radius: 10px;
+padding: 10px 14px;
+cursor: pointer;
+transition: opacity 0.12s;
+}
+.fp-clear:active { opacity: 0.7; }
+
+/* ── TAB BAR ── */
+.tab-bar {
+display: flex;
+border-bottom: 1px solid var(–border);
+margin-bottom: 0;
+}
+.tab {
+flex: 1;
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+letter-spacing: 0.5px;
+color: var(–muted);
+padding: 8px 4px;
+cursor: pointer;
+border-bottom: 2px solid transparent;
+transition: all 0.15s;
+user-select: none;
+}
+.tab.active {
+color: var(–accent);
+border-bottom-color: var(–accent);
+}
+
+/* ── FAVORITES ── */
+.fav-empty {
+text-align: center;
+padding: 50px 20px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+line-height: 1.8;
+}
+.fav-card {
+background: var(–card);
+border: 1px solid var(–border);
+border-radius: 10px;
+margin-bottom: 10px;
+overflow: hidden;
+}
+.fav-head {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 10px 12px 8px;
+}
+.fav-matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 22px;
+letter-spacing: 1.5px;
+color: var(–text);
+}
+.fav-date {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-top: 2px;
+}
+.fav-remove {
+background: none;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–red);
+font-size: 14px;
+padding: 4px 8px;
+cursor: pointer;
+flex-shrink: 0;
+}
+.fav-timing {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 6px;
+padding: 8px 12px;
+border-top: 1px solid var(–border);
+background: #1c2128;
+}
+.fav-t-item { display: flex; flex-direction: column; gap: 2px; }
+.fav-t-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.3px;
+}
+.fav-t-val {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 500;
+}
+.fav-t-val.y { color: var(–accent); }
+.fav-t-val.g { color: var(–green); }
+.fav-t-val.r { color: var(–red); }
+.fav-footer {
+display: flex;
+align-items: center;
+gap: 8px;
+padding: 7px 12px 8px;
+border-top: 1px solid var(–border);
+}
+.fav-expedia {
+display: inline-flex;
+align-items: center;
+background: var(–accent);
+color: #000;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 700;
+padding: 5px 10px;
+border-radius: 6px;
+text-decoration: none;
+white-space: nowrap;
+}
+.fav-price-wrap {
+display: flex;
+align-items: center;
+gap: 4px;
+flex: 1;
+}
+.fav-price-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+}
+.fav-price-input {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 4px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+font-weight: 500;
+width: 80px;
+outline: none;
+padding: 3px 6px;
+}
+.fav-price-input:focus { border-color: var(–accent); }
+.fav-price-input::placeholder { color: #3a4150; }
+
+/* Fav button in modal */
+.modal-fav-btn {
+display: block;
+width: 100%;
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+padding: 9px;
+border-radius: 10px;
+border: 1px solid var(–border);
+background: var(–chip);
+color: var(–muted);
+cursor: pointer;
+margin-bottom: 8px;
+transition: all 0.15s;
+}
+.modal-fav-btn.saved {
+background: #2a1a3a;
+border-color: #c084fc;
+color: #c084fc;
+}
+
+/* ── SHARED GAMES ── */
+.shared-card {
+background: var(–card);
+border: 1px solid #7c3aed44;
+border-radius: 10px;
+margin-bottom: 10px;
+overflow: hidden;
+}
+.shared-head {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 10px 12px 8px;
+}
+.shared-matchup {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 22px;
+letter-spacing: 1.5px;
+color: var(–text);
+}
+.shared-meta {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-top: 2px;
+}
+.shared-remove {
+background: none;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–red);
+font-size: 14px;
+padding: 4px 8px;
+cursor: pointer;
+flex-shrink: 0;
+}
+.shared-timing {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 6px;
+padding: 8px 12px;
+border-top: 1px solid var(–border);
+background: #1c1a2e;
+}
+.shared-t-item { display: flex; flex-direction: column; gap: 2px; }
+.shared-t-label { font-family:‘DM Mono’,monospace; font-size:8px; color:var(–muted); text-transform:uppercase; letter-spacing:.3px; }
+.shared-t-val   { font-family:‘DM Mono’,monospace; font-size:10px; font-weight:500; }
+.shared-t-val.y { color:var(–accent); }
+.shared-t-val.g { color:var(–green); }
+.shared-t-val.r { color:var(–red); }
+.shared-footer {
+display: flex;
+align-items: center;
+gap: 8px;
+padding: 7px 12px 8px;
+border-top: 1px solid var(–border);
+}
+.shared-expedia {
+display: inline-flex;
+align-items: center;
+background: var(–accent);
+color: #000;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+font-weight: 700;
+padding: 5px 10px;
+border-radius: 6px;
+text-decoration: none;
+white-space: nowrap;
+}
+.shared-by {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: #9d7ef5;
+margin-left: auto;
+}
+.modal-shared-btn {
+display: block;
+width: 100%;
+text-align: center;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+padding: 9px;
+border-radius: 10px;
+border: 1px solid var(–border);
+background: var(–chip);
+color: var(–muted);
+cursor: pointer;
+margin-bottom: 8px;
+transition: all 0.15s;
+}
+.modal-shared-btn.saved {
+background: #2a1a4a;
+border-color: #7c3aed;
+color: #9d7ef5;
+}
+.shared-empty {
+text-align: center;
+padding: 50px 20px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+line-height: 1.8;
+}
+.shared-loading {
+text-align: center;
+padding: 30px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+}
+
+.fav-share-btn {
+background: var(–chip);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–muted);
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+padding: 5px 8px;
+cursor: pointer;
+white-space: nowrap;
+flex-shrink: 0;
+transition: all 0.12s;
+}
+.fav-share-btn.shared-active {
+border-color: #7c3aed;
+color: #9d7ef5;
+background: #2a1a4a;
+}
+
+/* ── SHARE PROMPT (additions) ── */
+.sp-apply {
+flex: 1;
+background: #7c3aed;
+color: #fff;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 16px;
+letter-spacing: 1px;
+border: none;
+border-radius: 10px;
+padding: 10px;
+cursor: pointer;
+transition: opacity 0.12s;
+}
+.sp-apply:active { opacity: 0.8; }
+.sp-apply:disabled { opacity: 0.4; }
+.sp-textarea {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 6px;
+color: #e6edf3;
+font-family: ‘DM Sans’, sans-serif;
+font-size: 13px;
+padding: 8px 10px;
+width: 100%;
+outline: none;
+resize: vertical;
+min-height: 60px;
+}
+.sp-textarea:focus { border-color: #7c3aed; }
+.sp-textarea::placeholder { color: #3a4150; }
+
+/* Editable fields appended under each shared card */
+.sa-block {
+border-top: 1px solid var(–border);
+padding: 8px 12px;
+display: flex;
+flex-direction: column;
+gap: 6px;
+background: #15131f;
+}
+.sa-row { display: flex; align-items: center; gap: 6px; }
+.sa-row-top { align-items: flex-start; }
+.sa-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–muted);
+text-transform: uppercase;
+letter-spacing: 0.4px;
+flex-shrink: 0;
+min-width: 60px;
+}
+.sa-label-top { padding-top: 6px; }
+.sa-input {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 5px;
+color: #e6edf3;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+padding: 4px 7px;
+flex: 1;
+outline: none;
+transition: border-color 0.12s;
+min-width: 0;
+}
+.sa-input:focus { border-color: #7c3aed; }
+.sa-textarea {
+background: #0a0c0f;
+border: 1px solid var(–border);
+border-radius: 5px;
+color: #e6edf3;
+font-family: ‘DM Sans’, sans-serif;
+font-size: 12px;
+padding: 4px 7px;
+flex: 1;
+outline: none;
+min-height: 40px;
+resize: vertical;
+transition: border-color 0.12s;
+min-width: 0;
+}
+.sa-textarea:focus { border-color: #7c3aed; }
+.sa-status {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+opacity: 0;
+transition: opacity 0.2s;
+flex-shrink: 0;
+min-width: 40px;
+text-align: right;
+}
+.sa-status-top { padding-top: 6px; }
 </style>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
   import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
   const firebaseConfig = {
     apiKey: "AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
     authDomain: "mlb-games-5f69c.firebaseapp.com",
@@ -176,6 +946,7 @@
     appId: "1:936760247178:web:ddc48fb1dc13b2629bbe73",
     measurementId: "G-0XGY8WW9PQ"
   };
+
   const app = initializeApp(firebaseConfig);
   getAnalytics(app);
   window.db = getFirestore(app);
@@ -209,19 +980,22 @@
     <div class="tab active" id="tabGames" onclick="switchTab('games')">⚾ GAMES</div>
     <div class="tab" id="tabFavs" onclick="switchTab('favs')">⭐ FAVORITES</div>
     <div class="tab" id="tabShared" onclick="switchTab('shared')">🔗 SHARED</div>
-    <div class="tab" id="tabSettings" onclick="switchTab('settings')">⚙</div>
   </div>
   <div id="headerFilters">
-    <div class="filter-wrap">
-      <div class="filter-bar" id="filterBar">
-        <div class="chip all active" id="allChip">All</div>
-        <div class="divider-pill"></div>
-      </div>
+  <div class="filter-wrap">
+    <div class="filter-bar" id="filterBar">
+      <div class="chip all active" id="allChip">All</div>
+      <div class="divider-pill"></div>
     </div>
   </div>
+  </div><!-- /headerFilters -->
 </div>
 
-<main id="main"><div class="loading-state">⚾ Loading Saturday games…</div></main>
+<main id="main">
+  <div class="loading-state">⚾ Loading Saturday games…</div>
+</main>
+
+<!-- Modal -->
 
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
   <div class="modal-sheet">
@@ -229,13 +1003,17 @@
     <div class="modal-matchup" id="mMatchup"></div>
     <div class="modal-sub" id="mSub"></div>
     <div class="modal-timing" id="mTiming"></div>
-    <a class="modal-expedia-btn" id="mLink" href="#" target="_blank" rel="noopener">✈ SEARCH FLIGHTS ON EXPEDIA ↗</a>
+    <a class="modal-expedia-btn" id="mLink" href="#" target="_blank" rel="noopener">
+      ✈ SEARCH FLIGHTS ON EXPEDIA ↗
+    </a>
     <div class="modal-link-note">PDX → destination · Round-trip · Outbound &amp; return same Saturday</div>
     <div class="modal-fav-btn" id="mFavBtn" onclick="toggleFavorite()">⭐ SAVE TO FAVORITES</div>
     <div class="modal-shared-btn" id="mSharedBtn" onclick="toggleShared()">🔗 SHARE THIS GAME</div>
     <div class="modal-close" onclick="closeModal()">CLOSE</div>
   </div>
 </div>
+
+<!-- Share Prompt Modal (added for Shared by + Notes) -->
 
 <div class="fp-overlay" id="sharePromptOverlay" onclick="spOutsideClick(event)">
   <div class="fp-sheet">
@@ -257,6 +1035,8 @@
   </div>
 </div>
 
+<!-- Edit Shared Sheet -->
+
 <div class="fp-overlay" id="editSharedOverlay" onclick="esOutsideClick(event)">
   <div class="fp-sheet">
     <div class="fp-handle"></div>
@@ -277,165 +1057,8 @@
   </div>
 </div>
 
-<div class="fp-overlay" id="fpOverlay" onclick="fpOutsideClick(event)">
-  <div class="fp-sheet">
-    <div class="fp-handle"></div>
-    <div class="fp-title">⚙ FILTER GAMES</div>
-    <div class="fp-group">
-      <div class="fp-label">✈ Max Flight Duration (hours)</div>
-      <div class="fp-row"><input class="fp-input" id="fpMaxFlight" type="number" inputmode="decimal" placeholder="e.g. 3" min="0" max="12" step="0.5"></div>
-    </div>
-    <div class="fp-group">
-      <div class="fp-label">🛫 Leave PDX — Between (PT)</div>
-      <div class="fp-row">
-        <input class="fp-input" id="fpLeavePDXFrom" type="time">
-        <span class="fp-sep">–</span>
-        <input class="fp-input" id="fpLeavePDXTo" type="time">
-      </div>
-    </div>
-    <div class="fp-group">
-      <div class="fp-label">🛬 Arrive Back in PDX — Between (PT)</div>
-      <div class="fp-row">
-        <input class="fp-input" id="fpReturnFrom" type="time">
-        <span class="fp-sep">–</span>
-        <input class="fp-input" id="fpReturnTo" type="time">
-      </div>
-    </div>
-    <div class="fp-group">
-      <div class="fp-label">💰 Max Price Found ($)</div>
-      <div class="fp-row"><input class="fp-input" id="fpMaxPrice" type="number" inputmode="decimal" placeholder="e.g. 350" min="0"></div>
-    </div>
-    <div class="fp-group">
-      <div class="fp-label">📅 Month</div>
-      <div class="fp-row">
-        <select class="fp-input" id="fpMonth">
-          <option value="">Any month</option>
-          <option value="3">March</option><option value="4">April</option>
-          <option value="5">May</option><option value="6">June</option>
-          <option value="7">July</option><option value="8">August</option>
-          <option value="9">September</option><option value="10">October</option>
-        </select>
-      </div>
-    </div>
-    <div class="fp-group">
-      <div class="fp-label">⏰ Game Start Time (local) — Between</div>
-      <div class="fp-row">
-        <input class="fp-input" id="fpStartFrom" type="time">
-        <span class="fp-sep">–</span>
-        <input class="fp-input" id="fpStartTo" type="time">
-      </div>
-    </div>
-    <div class="fp-actions">
-      <button class="fp-clear" onclick="clearFilters()">CLEAR</button>
-      <button class="fp-apply" onclick="applyFilters()">APPLY FILTERS</button>
-    </div>
-  </div>
-</div>
-
-<div id="favsView" style="display:none; padding:10px 10px 40px;"><div id="favsContent"></div></div>
-<div id="sharedView" style="display:none; padding:10px 10px 40px;"><div id="sharedContent"><div class="shared-loading">Loading shared games…</div></div></div>
-<div id="settingsView" style="display:none; padding:16px 14px 60px;">
-  <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--muted);margin-bottom:16px;">SETTINGS</div>
-  <div class="settings-section">
-    <div class="settings-section-title">TIME DISPLAY</div>
-    <div class="settings-row" onclick="setTZ('local')" id="tzRowLocal">
-      <div class="settings-row-left">
-        <div class="settings-row-label">Local time</div>
-        <div class="settings-row-sub">PDX times in PT · Destination in local timezone</div>
-      </div>
-      <div class="settings-check" id="tzCheckLocal">✓</div>
-    </div>
-    <div class="settings-row" onclick="setTZ('et')" id="tzRowET">
-      <div class="settings-row-left">
-        <div class="settings-row-label">Eastern Time</div>
-        <div class="settings-row-sub">All times shown in ET</div>
-      </div>
-      <div class="settings-check" id="tzCheckET" style="opacity:0">✓</div>
-    </div>
-  </div>
-</div>
-
 <script>
-
-// ─── REFORMAT TIMES FROM RAW UTC MS ──────────────────────────────────────────
-// Call this on any object that has _msStart, _msArr etc. to reformat all times
-// based on the current tzSetting. Returns updated time strings.
-function reformatTimes(obj) {
-  if (!obj || !obj._msStart) return obj;
-  const dispTZ   = getDisplayTZ(obj.homeTZ || 'America/Los_Angeles');
-  const pdxDispTZ = getDisplayTZ('America/Los_Angeles');
-  obj.startDisplay = obj._msStart   ? toTZ(new Date(obj._msStart),   dispTZ)    : '—';
-  obj.arriveby     = obj._msArr      ? toTZ(new Date(obj._msArr),     dispTZ)    : '—';
-  obj.leavePDX     = obj._msLeavePDX ? toTZ(new Date(obj._msLeavePDX), pdxDispTZ) : '—';
-  obj.leaveCity    = obj._msLeaveCity ? toTZ(new Date(obj._msLeaveCity), dispTZ)  : '—';
-  obj.arrivePDX    = obj._msArrivePDX ? toTZ(new Date(obj._msArrivePDX), pdxDispTZ) : '—';
-  return obj;
-}
-
-// Rebuild the HTML for a single allGames entry after a TZ change
-// Uses cardStore lookup on click — NO time strings embedded in onclick
-function rebuildCardHTML(g) {
-  reformatTimes(g);
-  const tz = tzSetting === 'et' ? 'ET' : 'PT';
-  const pid = 'price-' + g.gameId;
-  let savedPrice = ''; try { savedPrice = localStorage.getItem(pid)||''; } catch(e) {}
-  const matchupSmall = (g.matchup||'').replace(' @ ','@');
-  const cid = 'c' + g.gameId;
-  // Update cardStore with fresh reformatted times
-  cardStore[cid] = g;
-  g.html = `<div class="game-card" onclick="cardClick('${cid}')">
-      <div class="card-head"><div class="matchup">${matchupSmall}</div><div class="card-meta"><strong>${g.homeCity}</strong><br>${g.startDisplay}</div></div>
-      <div class="card-flight"><span class="flight-badge">✈${g.flightStr||''}</span><a class="expedia-btn" href="${g.expUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">$$</a></div>
-      <div class="card-timing">
-        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${g.leavePDX} ${tz}</span></div>
-        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${g.arriveby}</span></div>
-        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${g.arrivePDX} ${tz}</span></div>
-      </div>
-      <div class="card-price"><span class="p-label">$</span><input class="p-input" type="text" inputmode="decimal" placeholder="price" value="${savedPrice}" onclick="event.stopPropagation()" onchange="savePrice('${pid}',this.value)"></div>
-    </div>`;
-}
-
-// Card click handler — always reads fresh times from cardStore (reformatTimes called on click)
-function cardClick(cid) {
-  const g = cardStore[cid];
-  if (!g) return;
-  reformatTimes(g);  // ensure times are current for the active TZ setting
-  openModalFromGame(g);
-}
-
-// ─── TZ SETTING ──────────────────────────────────────────────────────────────
-let tzSetting = 'local';
-try { tzSetting = localStorage.getItem('mlb_tz_setting') || 'local'; } catch(e) {}
-
-function getDisplayTZ(localTZ) {
-  return tzSetting === 'et' ? 'America/New_York' : localTZ;
-}
-function tzLabel(isOrigin) {
-  // isOrigin: whether this is a PDX origin/destination time
-  return tzSetting === 'et' ? 'ET' : (isOrigin ? 'PT' : '');
-}
-function setTZ(val) {
-  tzSetting = val;
-  try { localStorage.setItem('mlb_tz_setting', val); } catch(e) {}
-  document.getElementById('tzCheckLocal').style.opacity = val === 'local' ? '1' : '0';
-  document.getElementById('tzCheckET').style.opacity   = val === 'et'    ? '1' : '0';
-  // Reformat all game cards from stored UTC ms — no re-fetch needed
-  for (const g of allGames) rebuildCardHTML(g);
-  render();
-  // Re-render active tab if it shows times
-  if (document.getElementById('tabFavs').classList.contains('active')) renderFavs();
-  if (document.getElementById('tabShared').classList.contains('active')) renderShared();
-  // If modal is open, refresh its times live
-  if (currentModalGame && document.getElementById('modalOverlay').classList.contains('open')) {
-    openModalFromGame(currentModalGame);
-  }
-}
-function initTZSetting() {
-  document.getElementById('tzCheckLocal').style.opacity = tzSetting === 'local' ? '1' : '0';
-  document.getElementById('tzCheckET').style.opacity   = tzSetting === 'et'    ? '1' : '0';
-}
-
-// ─── TEAM DATA ────────────────────────────────────────────────────────────────
+// ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
   109: ['ARI', 'Phoenix',      'America/Phoenix',     'PHX', 2.5],
   144: ['ATL', 'Atlanta',      'America/New_York',    'ATL', 5.5],
@@ -472,7 +1095,7 @@ function getTeamInfo(id) {
   return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0];
 }
 
-// ─── UTILS ───────────────────────────────────────────────────────────────────
+// ─── UTILS ────────────────────────────────────────────────────────────────────
 function addHours(date, h) { return new Date(date.getTime() + h * 3600000); }
 function toTZ(date, tz) {
   return new Intl.DateTimeFormat('en-US', {
@@ -485,38 +1108,33 @@ function formatShortDate(dateStr) {
 }
 function expediaURL(iata, dateStr) {
   const [y,m,d] = dateStr.split('-');
-  return `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from%3APDX%2Cto%3A${iata}%2Cdeparture%3A${y}-${m}-${d}TANYT&leg2=from%3A${iata}%2Cto%3APDX%2Cdeparture%3A${y}-${m}-${d}TANYT&passengers=adults%3A1&mode=search`;
+  const dep = `${y}-${m}-${d}`;
+  return `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from%3APDX%2Cto%3A${iata}%2Cdeparture%3A${dep}TANYT&leg2=from%3A${iata}%2Cto%3APDX%2Cdeparture%3A${dep}TANYT&passengers=adults%3A1&mode=search`;
 }
 
-// ─── MODAL ───────────────────────────────────────────────────────────────────
-// Primary modal opener — takes a game object, always reformats times first
-function openModalFromGame(g) {
-  reformatTimes(g);
-  currentModalGame = g;
-  const tz = tzSetting === 'et' ? 'ET' : 'PT';
-  document.getElementById('mMatchup').textContent = g.matchup;
-  document.getElementById('mSub').textContent = `${g.dateLabel} · ✈ PDX ${g.flightStr}`;
-  document.getElementById('mLink').href = g.expUrl;
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
+  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay || '' };
+  document.getElementById('mMatchup').textContent = matchup;
+  document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
+  document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
-    <div class="mt-item"><div class="mt-label">Leave PDX</div><div class="mt-val y">${g.leavePDX} ${tz}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${g.arriveby}</div></div>
-    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${g.leaveCity}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${g.arrivePDX} ${tz}</div></div>`;
-  updateFavBtn(isFavorited(g.gameId));
-  updateSharedBtn(isShared(g.gameId));
+    <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${leavePDX} ET</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${arriveby} ET</div></div>
+    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${leaveCity} ET</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${arrivePDX} ET</div></div>
+  `;
+  updateFavBtn(isFavorited(gameId));
+  updateSharedBtn(isShared(gameId));
   document.getElementById('modalOverlay').classList.add('open');
 }
-// Legacy openModal kept so nothing breaks if called from old favorites data
-function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
-  const g = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay||'' };
-  // Try to find in cardStore for fresh times
-  const cid = 'c' + gameId;
-  openModalFromGame(cardStore[cid] || g);
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
 }
-function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
-function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
 
-// ─── SEASON END DATE ─────────────────────────────────────────────────────────
+// ─── SEASON END DATE ──────────────────────────────────────────────────────────
 async function getSeasonEndDate(year) {
   try {
     const r = await fetch(`https://statsapi.mlb.com/api/v1/seasons/${year}?sportId=1`);
@@ -528,13 +1146,16 @@ async function getSeasonEndDate(year) {
   return d.toISOString().split('T')[0];
 }
 
-// ─── FETCH GAMES ─────────────────────────────────────────────────────────────
-let activeDays = new Set([0,1,2,3,4,5,6]);
+// ─── FETCH GAMES ──────────────────────────────────────────────────────────────
+let activeDays = new Set([0,1,2,3,4,5,6]); // all days default, UI will toggle SAT-only highlight
 
 async function fetchGamesByDays(dowSet) {
-  const today = new Date(), year = today.getFullYear();
+  const today = new Date();
+  const year  = today.getFullYear();
   const todayStr = today.toISOString().split('T')[0];
-  const endDate = await getSeasonEndDate(year);
+  const endDate  = await getSeasonEndDate(year);
+
+  // Collect all matching dates from today to end of season
   const matchDates = [];
   let cur = new Date(todayStr + 'T12:00:00Z');
   const end = new Date(endDate + 'T12:00:00Z');
@@ -543,6 +1164,7 @@ async function fetchGamesByDays(dowSet) {
     cur = addHours(cur, 24);
   }
   if (!matchDates.length) return [];
+
   const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}&startDate=${matchDates[0]}&endDate=${endDate}&gameType=R&hydrate=team`;
   const resp = await fetch(url);
   const data = await resp.json();
@@ -559,265 +1181,377 @@ async function fetchGamesByDays(dowSet) {
   return games;
 }
 
-// ─── BUILD CARD ──────────────────────────────────────────────────────────────
+// ─── BUILD CARD ───────────────────────────────────────────────────────────────
 function buildCard(dateStr, game) {
-  const away = game.teams?.away?.team, home = game.teams?.home?.team;
+  const away = game.teams?.away?.team;
+  const home = game.teams?.home?.team;
   if (!away || !home) return null;
+
   const [awayCode] = getTeamInfo(away.id);
   const [homeCode, homeCity, homeTZ, homeIATA, flightHours] = getTeamInfo(home.id);
 
-  // Use display timezone based on setting
-  const dispTZ = getDisplayTZ(homeTZ);
-  const pdxDispTZ = getDisplayTZ('America/Los_Angeles');
-
   let gameStartUTC = null, startDisplay = 'TBD';
-  // Store raw UTC ms for all key moments so we can reformat on TZ change
-  let _msStart=0, _msArr=0, _msLeavePDX=0, _msLeaveCity=0, _msArrivePDX=0;
   if (game.gameDate) {
     gameStartUTC = new Date(game.gameDate);
-    _msStart = gameStartUTC.getTime();
-    startDisplay = toTZ(gameStartUTC, dispTZ);
+    startDisplay = toTZ(gameStartUTC, 'America/New_York');
   }
+
   let leavePDX = '—', arriveby = '—', leaveCity = '—', arrivePDX = '—';
+  let leaveCityUTC = null;
   if (gameStartUTC) {
     const arrTime = addHours(gameStartUTC, -3);
-    _msArr       = arrTime.getTime();
-    _msLeavePDX  = addHours(arrTime, -(flightHours+1)).getTime();
-    _msLeaveCity = addHours(gameStartUTC, 6).getTime();
-    _msArrivePDX = addHours(new Date(_msLeaveCity), flightHours).getTime();
-    arriveby  = toTZ(arrTime, dispTZ);
-    leavePDX  = toTZ(new Date(_msLeavePDX), pdxDispTZ);
-    leaveCity = toTZ(new Date(_msLeaveCity), dispTZ);
-    arrivePDX = toTZ(new Date(_msArrivePDX), pdxDispTZ);
+    arriveby     = toTZ(arrTime, 'America/New_York');
+    leavePDX     = toTZ(addHours(arrTime, -(flightHours+1)), 'America/New_York');
+    leaveCityUTC = addHours(gameStartUTC, 6);
+    leaveCity    = toTZ(leaveCityUTC, 'America/New_York');
+    arrivePDX    = toTZ(addHours(leaveCityUTC, flightHours), 'America/New_York');
   }
 
-  const tz = tzSetting === 'et' ? 'ET' : 'PT';
   const flightStr = flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`;
-  const expUrl = expediaURL(homeIATA, dateStr);
-  const matchup = `${awayCode}@${homeCode}`;
+  const expUrl    = expediaURL(homeIATA, dateStr);
+  const matchup   = `${awayCode}@${homeCode}`;
   const matchupFull = `${awayCode} @ ${homeCode}`;
-  const inputId = `price-${game.gamePk}`;
+  const inputId   = `price-${game.gamePk}`;
   const dateLabel = formatShortDate(dateStr);
-  let savedPrice = '';
+  let savedPrice  = '';
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
-  // Store in cardStore so cardClick can look up fresh times without stale onclick args
-  const cid = 'c' + game.gamePk;
-  const gameEntry = { gameId: String(game.gamePk), matchup: matchupFull, matchupSmall: matchup,
-    dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay,
-    homeCity, homeTZ, flightHours, _msStart, _msArr, _msLeavePDX, _msLeaveCity, _msArrivePDX };
-  cardStore[cid] = gameEntry;
-
+  // Inline card (small)
   const html = `
-    <div class="game-card" onclick="cardClick('${cid}')">
+    <div class="game-card"
+      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}','${startDisplay}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
-        <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay}</div>
+        <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay} ET</div>
       </div>
       <div class="card-flight">
         <span class="flight-badge">✈${flightStr}</span>
-        <a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">$$</a>
+        <a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener"
+          onclick="event.stopPropagation()">$$</a>
       </div>
       <div class="card-timing">
-        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${leavePDX} ${tz}</span></div>
-        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${arriveby}</span></div>
-        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${arrivePDX} ${tz}</span></div>
+        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${leavePDX}</span></div>
+        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${arriveby} ET</span></div>
+        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${arrivePDX} ET</span></div>
       </div>
       <div class="card-price">
         <span class="p-label">$</span>
         <input class="p-input" type="text" inputmode="decimal" placeholder="price"
-          value="${savedPrice}" onclick="event.stopPropagation()" onchange="savePrice('${inputId}',this.value)">
+          value="${savedPrice}"
+          onclick="event.stopPropagation()"
+          onchange="savePrice('${inputId}',this.value)">
       </div>
     </div>`;
 
-  return { homeCity, homeCode, flightHours, leavePDX, arriveby, leaveCity, arrivePDX, savedPrice, startDisplay, html, _msStart, _msArr, _msLeavePDX, _msLeaveCity, _msArrivePDX, homeTZ };
+  return { homeCity, homeCode, flightHours, leavePDX, leaveCity, arrivePDX, savedPrice, startDisplay, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
 
-// ─── FILTER STATE ─────────────────────────────────────────────────────────────
-let allGames = [], selectedCodes = new Set(), cardStore = {};
+// ─── FILTER STATE (multi-select by homeCity) ──────────────────────────────────
+let allGames = [];
+let selectedCodes = new Set();
 
 function render() {
   const main = document.getElementById('main');
   const isAll = selectedCodes.size === 0;
   let filtered = isAll ? allGames : allGames.filter(g => selectedCodes.has(g.homeCode));
-  if (activeFilters.maxFlight)
+
+  // Apply advanced filters
+  if (activeFilters.maxFlight) {
     filtered = filtered.filter(g => (g.flightHours || 99) <= activeFilters.maxFlight);
+  }
   if (activeFilters.leavePDXFrom || activeFilters.leavePDXTo) {
-    const a = timeToMinutes(activeFilters.leavePDXFrom), b = timeToMinutes(activeFilters.leavePDXTo);
-    filtered = filtered.filter(g => { const t = displayTimeToMinutes(g.leavePDX); if (t===null) return true; if (a&&t<a) return false; if (b&&t>b) return false; return true; });
+    const fromMin = timeToMinutes(activeFilters.leavePDXFrom);
+    const toMin   = timeToMinutes(activeFilters.leavePDXTo);
+    filtered = filtered.filter(g => {
+      const t = displayTimeToMinutes(g.leavePDX);
+      if (t === null) return true;
+      if (fromMin !== null && t < fromMin) return false;
+      if (toMin   !== null && t > toMin)   return false;
+      return true;
+    });
   }
   if (activeFilters.returnFrom || activeFilters.returnTo) {
-    const a = timeToMinutes(activeFilters.returnFrom), b = timeToMinutes(activeFilters.returnTo);
-    filtered = filtered.filter(g => { const t = displayTimeToMinutes(g.arrivePDX); if (t===null) return true; if (a&&t<a) return false; if (b&&t>b) return false; return true; });
+    const fromMin = timeToMinutes(activeFilters.returnFrom);
+    const toMin   = timeToMinutes(activeFilters.returnTo);
+    filtered = filtered.filter(g => {
+      const t = displayTimeToMinutes(g.arrivePDX);
+      if (t === null) return true;
+      if (fromMin !== null && t < fromMin) return false;
+      if (toMin   !== null && t > toMin)   return false;
+      return true;
+    });
   }
-  if (activeFilters.maxPrice)
-    filtered = filtered.filter(g => { const p = parseFloat(g.savedPrice); return !p || p <= activeFilters.maxPrice; });
+  if (activeFilters.maxPrice) {
+    filtered = filtered.filter(g => {
+      const price = parseFloat(g.savedPrice);
+      if (!price) return true;
+      return price <= activeFilters.maxPrice;
+    });
+  }
   if (activeFilters.month) {
     const m = parseInt(activeFilters.month);
-    filtered = filtered.filter(g => { const [,mo] = g.date.split('-').map(Number); return mo === m; });
+    filtered = filtered.filter(g => {
+      const [y, mo] = g.date.split('-').map(Number);
+      return mo === m;
+    });
   }
   if (activeFilters.startFrom || activeFilters.startTo) {
-    const a = timeToMinutes(activeFilters.startFrom), b = timeToMinutes(activeFilters.startTo);
-    filtered = filtered.filter(g => { const t = displayTimeToMinutes(g.startDisplay); if (t===null) return true; if (a&&t<a) return false; if (b&&t>b) return false; return true; });
+    const fromMin = timeToMinutes(activeFilters.startFrom);
+    const toMin   = timeToMinutes(activeFilters.startTo);
+    filtered = filtered.filter(g => {
+      const t = displayTimeToMinutes(g.startDisplay);
+      if (t === null) return true;
+      if (fromMin !== null && t < fromMin) return false;
+      if (toMin   !== null && t > toMin)   return false;
+      return true;
+    });
   }
-  if (!filtered.length) { main.innerHTML = '<div class="empty-state">No games match.</div>'; return; }
+
+  if (!filtered.length) {
+    main.innerHTML = `<div class="empty-state">No games match the selected teams.</div>`;
+    return;
+  }
+
   const byDate = {};
-  for (const g of filtered) (byDate[g.date] = byDate[g.date] || []).push(g);
-  const nd = Object.keys(byDate).length;
-  let html = `<div class="game-count">${filtered.length} GAME${filtered.length!==1?'S':''} · ${nd} DAY${nd!==1?'S':''}</div>`;
-  for (const [date, gs] of Object.entries(byDate)) {
-    html += `<div class="date-divider">${formatShortDate(date)}</div><div class="games-grid">`;
-    for (const g of gs) html += g.html;
-    html += '</div>';
+  for (const g of filtered) {
+    (byDate[g.date] = byDate[g.date] || []).push(g);
+  }
+
+  const numDays = Object.keys(byDate).length;
+  let html = `<div class="game-count">${filtered.length} GAME${filtered.length!==1?'S':''} · ${numDays} DAY${numDays!==1?'S':''}</div>`;
+  for (const [date, games] of Object.entries(byDate)) {
+    html += `<div class="date-divider">${formatShortDate(date)}</div>`;
+    html += `<div class="games-grid">`;
+    for (const g of games) html += g.html;
+    html += `</div>`;
   }
   main.innerHTML = html;
 }
 
 function buildFilterChips(codes) {
-  const bar = document.getElementById('filterBar'), allChip = document.getElementById('allChip');
+  const bar = document.getElementById('filterBar');
+  const allChip = document.getElementById('allChip');
+
   [...bar.querySelectorAll('.chip:not(.all), .divider-pill')].forEach(el => el.remove());
-  const div = document.createElement('div'); div.className = 'divider-pill'; bar.appendChild(div);
-  [...codes].sort().forEach(code => {
-    const chip = document.createElement('div'); chip.className = 'chip'; chip.textContent = code;
+
+  const div = document.createElement('div');
+  div.className = 'divider-pill';
+  bar.appendChild(div);
+
+  const sorted = [...codes].sort();
+  for (const code of sorted) {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = code;
     chip.addEventListener('click', () => {
-      if (selectedCodes.has(code)) { selectedCodes.delete(code); chip.classList.remove('active'); }
-      else { selectedCodes.add(code); chip.classList.add('active'); allChip.classList.remove('active'); }
+      if (selectedCodes.has(code)) {
+        selectedCodes.delete(code);
+        chip.classList.remove('active');
+      } else {
+        selectedCodes.add(code);
+        chip.classList.add('active');
+        allChip.classList.remove('active');
+      }
       if (selectedCodes.size === 0) allChip.classList.add('active');
       render();
     });
     bar.appendChild(chip);
-  });
+  }
+
   allChip.addEventListener('click', () => {
     selectedCodes.clear();
     document.querySelectorAll('#filterBar .chip').forEach(c => c.classList.remove('active'));
-    allChip.classList.add('active'); render();
+    allChip.classList.add('active');
+    render();
   });
 }
 
-// ─── FILTER PANEL ─────────────────────────────────────────────────────────────
+
+// ─── FILTER PANEL LOGIC ───────────────────────────────────────────────────────
 let activeFilters = {};
+
 function openFilterPanel() {
-  document.getElementById('fpMaxFlight').value    = activeFilters.maxFlight     || '';
-  document.getElementById('fpLeavePDXFrom').value = activeFilters.leavePDXFrom  || '';
-  document.getElementById('fpLeavePDXTo').value   = activeFilters.leavePDXTo    || '';
-  document.getElementById('fpReturnFrom').value   = activeFilters.returnFrom    || '';
-  document.getElementById('fpReturnTo').value     = activeFilters.returnTo      || '';
-  document.getElementById('fpMaxPrice').value     = activeFilters.maxPrice      || '';
-  document.getElementById('fpMonth').value        = activeFilters.month         || '';
-  document.getElementById('fpStartFrom').value    = activeFilters.startFrom     || '';
-  document.getElementById('fpStartTo').value      = activeFilters.startTo       || '';
+  // Restore saved values
+  document.getElementById('fpMaxFlight').value   = activeFilters.maxFlight  || '';
+  document.getElementById('fpLeavePDXFrom').value = activeFilters.leavePDXFrom || '';
+  document.getElementById('fpLeavePDXTo').value   = activeFilters.leavePDXTo   || '';
+  document.getElementById('fpReturnFrom').value   = activeFilters.returnFrom || '';
+  document.getElementById('fpReturnTo').value     = activeFilters.returnTo   || '';
+  document.getElementById('fpMaxPrice').value     = activeFilters.maxPrice   || '';
+  document.getElementById('fpMonth').value         = activeFilters.month      || '';
+  document.getElementById('fpStartFrom').value     = activeFilters.startFrom  || '';
+  document.getElementById('fpStartTo').value       = activeFilters.startTo    || '';
   document.getElementById('fpOverlay').classList.add('open');
 }
-function fpOutsideClick(e) { if (e.target === document.getElementById('fpOverlay')) document.getElementById('fpOverlay').classList.remove('open'); }
+function fpOutsideClick(e) {
+  if (e.target === document.getElementById('fpOverlay'))
+    document.getElementById('fpOverlay').classList.remove('open');
+}
 function clearFilters() {
   activeFilters = {};
-  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice','fpMonth','fpStartFrom','fpStartTo'].forEach(id => document.getElementById(id).value = '');
-  updateFilterBtn(); document.getElementById('fpOverlay').classList.remove('open'); render();
+  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice','fpMonth','fpStartFrom','fpStartTo'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  updateFilterBtn();
+  document.getElementById('fpOverlay').classList.remove('open');
+  render();
 }
 function applyFilters() {
   activeFilters = {
-    maxFlight:    parseFloat(document.getElementById('fpMaxFlight').value)    || null,
-    leavePDXFrom: document.getElementById('fpLeavePDXFrom').value             || null,
-    leavePDXTo:   document.getElementById('fpLeavePDXTo').value               || null,
-    returnFrom:   document.getElementById('fpReturnFrom').value               || null,
-    returnTo:     document.getElementById('fpReturnTo').value                 || null,
-    maxPrice:     parseFloat(document.getElementById('fpMaxPrice').value)     || null,
-    month:        document.getElementById('fpMonth').value                    || null,
-    startFrom:    document.getElementById('fpStartFrom').value                || null,
-    startTo:      document.getElementById('fpStartTo').value                  || null,
+    maxFlight:    parseFloat(document.getElementById('fpMaxFlight').value)   || null,
+    leavePDXFrom: document.getElementById('fpLeavePDXFrom').value || null,
+    leavePDXTo:   document.getElementById('fpLeavePDXTo').value   || null,
+    returnFrom:   document.getElementById('fpReturnFrom').value   || null,
+    returnTo:     document.getElementById('fpReturnTo').value     || null,
+    maxPrice:     parseFloat(document.getElementById('fpMaxPrice').value)    || null,
+    month:        document.getElementById('fpMonth').value                     || null,
+    startFrom:    document.getElementById('fpStartFrom').value                 || null,
+    startTo:      document.getElementById('fpStartTo').value                   || null,
   };
-  updateFilterBtn(); document.getElementById('fpOverlay').classList.remove('open'); render();
+  updateFilterBtn();
+  document.getElementById('fpOverlay').classList.remove('open');
+  render();
 }
 function updateFilterBtn() {
-  const has = Object.values(activeFilters).some(v => v !== null && v !== '');
+  const hasAny = Object.values(activeFilters).some(v => v !== null && v !== '');
   const btn = document.getElementById('fpBtn');
-  btn.classList.toggle('has-filters', has);
-  btn.textContent = has ? '⚙ FILTERS ●' : '⚙ FILTERS';
-}
-function timeToMinutes(str) { if (!str) return null; const [h,m] = str.split(':').map(Number); return h*60+m; }
-function displayTimeToMinutes(str) {
-  if (!str || str === '—') return null;
-  const match = str.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!match) return null;
-  let h = parseInt(match[1]); const m = parseInt(match[2]); const ap = match[3].toUpperCase();
-  if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
-  return h*60+m;
+  btn.classList.toggle('has-filters', hasAny);
+  btn.textContent = hasAny ? '⚙ FILTERS ●' : '⚙ FILTERS';
 }
 
-// ─── FAVORITES ───────────────────────────────────────────────────────────────
-let currentModalGame = null;
-function getFavorites() { try { return JSON.parse(localStorage.getItem('mlb_favs') || '[]'); } catch(e) { return []; } }
-function saveFavorites(favs) { try { localStorage.setItem('mlb_favs', JSON.stringify(favs)); } catch(e) {} }
-function isFavorited(gameId) { return getFavorites().some(f => f.gameId === gameId); }
+// Convert "HH:MM" time string to minutes since midnight for comparison
+function timeToMinutes(str) {
+  if (!str) return null;
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+// Parse a display time like "6:35 AM" or "11:05 PM" to minutes since midnight
+function displayTimeToMinutes(str) {
+  if (!str || str === '—') return null;
+  const match = str.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return null;
+  let h = parseInt(match[1]);
+  const m = parseInt(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+
+// ─── FAVORITES ────────────────────────────────────────────────────────────────
+let currentModalGame = null; // full game data object for the open modal
+
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('mlb_favs') || '[]'); } catch(e) { return []; }
+}
+function saveFavorites(favs) {
+  try { localStorage.setItem('mlb_favs', JSON.stringify(favs)); } catch(e) {}
+}
+function isFavorited(gameId) {
+  return getFavorites().some(f => f.gameId === gameId);
+}
 function toggleFavorite() {
   if (!currentModalGame) return;
-  const favs = getFavorites(), idx = favs.findIndex(f => f.gameId === currentModalGame.gameId);
-  if (idx >= 0) { favs.splice(idx, 1); saveFavorites(favs); updateFavBtn(false); }
-  else { favs.push(currentModalGame); saveFavorites(favs); updateFavBtn(true); }
+  const favs = getFavorites();
+  const idx = favs.findIndex(f => f.gameId === currentModalGame.gameId);
+  if (idx >= 0) {
+    favs.splice(idx, 1);
+    saveFavorites(favs);
+    updateFavBtn(false);
+  } else {
+    favs.push(currentModalGame);
+    saveFavorites(favs);
+    updateFavBtn(true);
+  }
   if (document.getElementById('tabFavs').classList.contains('active')) renderFavs();
 }
 function updateFavBtn(saved) {
   const btn = document.getElementById('mFavBtn');
-  btn.textContent = saved ? '⭐ SAVED — TAP TO REMOVE' : '⭐ SAVE TO FAVORITES';
-  btn.classList.toggle('saved', saved);
-}
-
-function openFavModal(gameId) {
-  // Try cardStore first (has raw ms), fall back to favorites localStorage
-  const cid = 'c' + gameId;
-  if (cardStore[cid]) { openModalFromGame(cardStore[cid]); return; }
-  const favs = getFavorites();
-  const f = favs.find(x => x.gameId === String(gameId));
-  if (f) openModalFromGame(reformatTimes(f) || f);
+  if (saved) {
+    btn.textContent = '⭐ SAVED — TAP TO REMOVE';
+    btn.classList.add('saved');
+  } else {
+    btn.textContent = '⭐ SAVE TO FAVORITES';
+    btn.classList.remove('saved');
+  }
 }
 
 function renderFavs() {
-  const favs = getFavorites(), el = document.getElementById('favsContent');
-  if (!favs.length) { el.innerHTML = '<div class="fav-empty">No favorites yet.<br>Open any game card and tap<br>⭐ Save to Favorites.</div>'; return; }
-  const tz = tzSetting === 'et' ? 'ET' : 'PT';
+  const favs = getFavorites();
+  const el = document.getElementById('favsContent');
+  if (!favs.length) {
+    el.innerHTML = '<div class="fav-empty">No favorites yet.<br>Open any game card and tap<br>⭐ Save to Favorites.</div>';
+    return;
+  }
   el.innerHTML = favs.map(f => {
+    const inputId = 'fav-price-' + f.gameId;
     const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
-    const fObj = reformatTimes(f) || f;
-    return `<div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavModal('${f.gameId}')">
+    return `
+    <div class="fav-card" id="fav-card-${f.gameId}">
       <div class="fav-head">
-        <div><div class="fav-matchup">${f.matchup}</div><div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}</div></div>
+        <div>
+          <div class="fav-matchup">${f.matchup}</div>
+          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}</div>
+        </div>
         <button class="fav-remove" onclick="removeFav('${f.gameId}')">✕</button>
       </div>
       <div class="fav-timing">
-        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${reformatTimes(f).leavePDX} ${tz}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${reformatTimes(f).arriveby}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${reformatTimes(f).leaveCity}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${reformatTimes(f).arrivePDX} ${tz}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${f.leavePDX} ET</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${f.arriveby} ET</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${f.leaveCity} ET</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${f.arrivePDX} ET</div></div>
       </div>
       <div class="fav-footer">
         <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
         <button class="fav-share-btn" id="fav-share-${f.gameId}" onclick="shareFavGame('${f.gameId}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
-        <div class="fav-price-wrap"><span class="fav-price-label">$</span>
-          <input class="fav-price-input" type="text" inputmode="decimal" placeholder="price" value="${saved}" onchange="savePrice('price-${f.gameId}', this.value)">
+        <div class="fav-price-wrap">
+          <span class="fav-price-label">$</span>
+          <input class="fav-price-input" type="text" inputmode="decimal" placeholder="price"
+            value="${saved}"
+            onchange="savePrice('price-${f.gameId}', this.value)">
         </div>
       </div>
     </div>`;
   }).join('');
 }
-function removeFav(gameId) { saveFavorites(getFavorites().filter(f => f.gameId !== gameId)); renderFavs(); updateFavTab(); }
-function updateFavTab() { const n = getFavorites().length; document.getElementById('tabFavs').textContent = n ? `⭐ FAVORITES (${n})` : '⭐ FAVORITES'; }
 
-// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
-function switchTab(tab) {
-  ['tabGames','tabFavs','tabShared','tabSettings'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
-  const t = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)); if(t) t.classList.add('active');
-  document.getElementById('main').style.display         = tab === 'games'    ? '' : 'none';
-  document.getElementById('favsView').style.display     = tab === 'favs'     ? '' : 'none';
-  document.getElementById('sharedView').style.display   = tab === 'shared'   ? '' : 'none';
-  document.getElementById('settingsView').style.display = tab === 'settings' ? '' : 'none';
-  document.getElementById('headerFilters').style.display = tab === 'games'   ? '' : 'none';
-  if (tab === 'favs') renderFavs();
-  if (tab === 'shared') { document.getElementById('sharedContent').innerHTML = '<div class="shared-loading">⏳ Loading…</div>'; getSharedGames().then(() => { renderShared(); updateSharedTab(); }); }
+function removeFav(gameId) {
+  const favs = getFavorites().filter(f => f.gameId !== gameId);
+  saveFavorites(favs);
+  renderFavs();
+  // Update fav count badge
+  updateFavTab();
 }
 
-// ─── FIREBASE ────────────────────────────────────────────────────────────────
+function updateFavTab() {
+  const count = getFavorites().length;
+  document.getElementById('tabFavs').textContent = count > 0 ? `⭐ FAVORITES (${count})` : '⭐ FAVORITES';
+}
+
+// ── TAB SWITCHING ──
+function switchTab(tab) {
+  ['tabGames','tabFavs','tabShared'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('main').style.display = tab === 'games' ? '' : 'none';
+  document.getElementById('favsView').style.display = tab === 'favs' ? '' : 'none';
+  document.getElementById('sharedView').style.display = tab === 'shared' ? '' : 'none';
+  document.getElementById('headerFilters').style.display = tab === 'games' ? '' : 'none';
+  if (tab === 'favs') renderFavs();
+  if (tab === 'shared') {
+    document.getElementById('sharedContent').innerHTML = '<div class="shared-loading">⏳ Loading…</div>';
+    getSharedGames().then(() => { renderShared(); updateSharedTab(); });
+  }
+}
+
+
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+// db is initialized by the module script below and exposed as window.db
 let db = null;
+
+// ─── SHARED GAMES (FIREBASE) ──────────────────────────────────────────────────
 let sharedGamesCache = [];
 
 async function getSharedGames() {
@@ -828,14 +1562,23 @@ async function getSharedGames() {
     const snap = await getDocs(q);
     sharedGamesCache = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
     return sharedGamesCache;
-  } catch(e) { console.error('Firebase read error:', e); return []; }
+  } catch(e) {
+    console.error('Firebase read error:', e);
+    return [];
+  }
 }
-function isShared(gameId) { return sharedGamesCache.some(g => g.gameId === String(gameId)); }
+
+function isShared(gameId) {
+  return sharedGamesCache.some(g => g.gameId === String(gameId));
+}
+
 async function toggleShared() {
   if (!currentModalGame) return;
   const gameId = String(currentModalGame.gameId);
+
   const existing = sharedGamesCache.find(g => g.gameId === gameId);
   if (existing) {
+    // Remove from Firebase
     try {
       const { deleteDoc, doc } = window.firestoreFns;
       await deleteDoc(doc(window.db, 'sharedGames', existing.fbId));
@@ -845,187 +1588,325 @@ async function toggleShared() {
     updateSharedTab();
     if (document.getElementById('tabShared').classList.contains('active')) renderShared();
   } else {
+    // ADDED: open prompt for sharedBy + notes instead of adding directly
     openSharePrompt(currentModalGame);
   }
 }
+
 async function removeShared(fbId) {
   try {
     const { deleteDoc, doc } = window.firestoreFns;
     await deleteDoc(doc(window.db, 'sharedGames', fbId));
     sharedGamesCache = sharedGamesCache.filter(g => g.fbId !== fbId);
-    renderShared(); updateSharedTab();
+    renderShared();
+    updateSharedTab();
   } catch(e) { console.error('Remove error:', e); }
 }
+
 function updateSharedBtn(saved) {
-  const btn = document.getElementById('mSharedBtn'); if (!btn) return;
-  btn.textContent = saved ? '🔗 SHARED — TAP TO REMOVE' : '🔗 SHARE THIS GAME';
-  btn.classList.toggle('saved', saved);
+  const btn = document.getElementById('mSharedBtn');
+  if (!btn) return;
+  if (saved) {
+    btn.textContent = '🔗 SHARED — TAP TO REMOVE';
+    btn.classList.add('saved');
+  } else {
+    btn.textContent = '🔗 SHARE THIS GAME';
+    btn.classList.remove('saved');
+  }
 }
+
 async function shareFavGame(gameId) {
-  const favs = getFavorites(), game = favs.find(f => f.gameId === String(gameId));
+  const favs = getFavorites();
+  const game = favs.find(f => f.gameId === String(gameId));
   if (!game) return;
+
   const existing = sharedGamesCache.find(g => g.gameId === String(gameId));
   if (existing) {
+    // Remove from Firebase
     try {
       const { deleteDoc, doc } = window.firestoreFns;
       await deleteDoc(doc(window.db, 'sharedGames', existing.fbId));
       sharedGamesCache = sharedGamesCache.filter(g => g.fbId !== existing.fbId);
       const btn = document.getElementById('fav-share-' + gameId);
-      if (btn) { btn.textContent = '🔗 SHARE'; btn.classList.remove('shared-active'); }
+      if (btn) {
+        btn.textContent = '🔗 SHARE';
+        btn.classList.remove('shared-active');
+      }
       updateSharedTab();
       if (document.getElementById('tabShared').classList.contains('active')) renderShared();
     } catch(e) { console.error('Delete error:', e); }
   } else {
+    // ADDED: open prompt for sharedBy + notes
     openSharePrompt(game);
   }
 }
-function updateSharedTab() { const n = sharedGamesCache.length; document.getElementById('tabShared').textContent = n ? `🔗 SHARED (${n})` : '🔗 SHARED'; }
+
+function updateSharedTab() {
+  const count = sharedGamesCache.length;
+  document.getElementById('tabShared').textContent = count > 0 ? `🔗 SHARED (${count})` : '🔗 SHARED';
+}
+
+// ── renderShared: ORIGINAL simple version. No DOM manipulation tricks.
+//    Shows the sharedBy in the byline if present. No inline edit fields yet.
 function renderShared() {
   const el = document.getElementById('sharedContent');
-  if (!sharedGamesCache.length) { el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>'; return; }
-  const tz = tzSetting === 'et' ? 'ET' : 'PT';
+  if (!sharedGamesCache.length) {
+    el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>';
+    return;
+  }
   el.innerHTML = sharedGamesCache.map(f => {
     const dateStr = new Date(f.sharedAt).toLocaleDateString();
     const byline = f.sharedBy ? (f.sharedBy + ' · ' + dateStr) : ('Shared ' + dateStr);
     const notesLine = f.notes ? `<div class="shared-meta" style="padding:6px 12px;border-top:1px solid var(--border);background:#15131f;">📝 ${f.notes}</div>` : '';
-    const startLine = f.startDisplay ? ` · 🕒 ${f.startDisplay}` : '';
+    const startLine = f.startDisplay ? ` · 🕒 ${f.startDisplay} ET` : '';
     const priceBadge = f.price ? `<span style="color:var(--accent);font-weight:700;margin-right:8px;">$${f.price}</span>` : '';
-    return `<div class="shared-card" onclick="openSharedEdit('${f.fbId}')">
+    return `
+    <div class="shared-card" onclick="openSharedEdit('${f.fbId}')">
       <div class="shared-head">
-        <div><div class="shared-matchup">${f.matchup}</div><div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${startLine}</div></div>
+        <div>
+          <div class="shared-matchup">${f.matchup}</div>
+          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${startLine}</div>
+        </div>
         <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
       </div>
       <div class="shared-timing">
-        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${reformatTimes(f).leavePDX} ${tz}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${reformatTimes(f).arriveby}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${reformatTimes(f).leaveCity}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${reformatTimes(f).arrivePDX} ${tz}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${f.leavePDX} ET</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${f.arriveby} ET</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${f.leaveCity} ET</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${f.arrivePDX} ET</div></div>
       </div>
       ${notesLine}
-      <div class="shared-footer">
-        <a class="shared-expedia" href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ FLIGHTS ↗</a>
-        ${priceBadge}<span class="shared-by">${byline}</span>
+      <div style="padding:8px 12px;border-top:1px solid var(--border);">
+        <a href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+          style="display:block;background:var(--accent);color:#000;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;text-align:center;padding:9px;border-radius:8px;text-decoration:none;">
+          ✈ SEARCH FLIGHTS ON EXPEDIA ↗
+        </a>
       </div>
-    </div>`;
+      <div class="shared-footer">
+        ${priceBadge}
+        <span class="shared-by">${byline}</span>
+      </div>
+    </div>
+  `;
   }).join('');
 }
 
 // ─── SHARE PROMPT ─────────────────────────────────────────────────────────────
-let pendingShareGame = null, _saSaveTimers = {};
-function spOutsideClick(e) { if (e.target === document.getElementById('sharePromptOverlay')) closeSharePrompt(); }
+let pendingShareGame = null;
+let _saSaveTimers = {};
+
+function spOutsideClick(e) {
+  if (e.target === document.getElementById('sharePromptOverlay')) closeSharePrompt();
+}
+
 function openSharePrompt(game) {
   pendingShareGame = game;
   document.getElementById('spMatchup').textContent = game.matchup + ' · ' + game.dateLabel;
-  let lastName = ''; try { lastName = localStorage.getItem('mlb_last_shared_by') || ''; } catch(e) {}
+  let lastName = '';
+  try { lastName = localStorage.getItem('mlb_last_shared_by') || ''; } catch(e) {}
   document.getElementById('spSharedBy').value = lastName;
   document.getElementById('spNotes').value = '';
   document.getElementById('sharePromptOverlay').classList.add('open');
-  setTimeout(function(){ var el = document.getElementById('spSharedBy'); if (el) el.focus(); }, 100);
+  setTimeout(function(){
+    var el = document.getElementById('spSharedBy');
+    if (el) el.focus();
+  }, 100);
 }
-function closeSharePrompt() { document.getElementById('sharePromptOverlay').classList.remove('open'); pendingShareGame = null; }
+
+function closeSharePrompt() {
+  document.getElementById('sharePromptOverlay').classList.remove('open');
+  pendingShareGame = null;
+}
+
 async function submitSharePrompt() {
   if (!pendingShareGame) return;
+  // Both fields are now optional. If empty, just save with empty strings.
   const sharedBy = (document.getElementById('spSharedBy').value || '').trim();
   const notes = (document.getElementById('spNotes').value || '').trim();
   const submitBtn = document.getElementById('spSubmit');
-  submitBtn.disabled = true; submitBtn.textContent = 'SHARING…';
-  const game = pendingShareGame, gameId = String(game.gameId);
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'SHARING…';
+
+  const game = pendingShareGame;
+  const gameId = String(game.gameId);
+
   try {
-    if (sharedBy) { try { localStorage.setItem('mlb_last_shared_by', sharedBy); } catch(e) {} }
+    if (sharedBy) {
+      try { localStorage.setItem('mlb_last_shared_by', sharedBy); } catch(e) {}
+    }
+
     const { addDoc, collection } = window.firestoreFns;
-    let price = ''; try { price = localStorage.getItem('price-' + gameId) || ''; } catch(e) {}
+    // Read the price the user typed for this game (stored in localStorage by savePrice).
+    let price = '';
+    try { price = localStorage.getItem('price-' + gameId) || ''; } catch(e) {}
+    // Build a clean payload, field by field, all serializable.
     const data = {
-      gameId, matchup: String(game.matchup||''), dateLabel: String(game.dateLabel||''),
-      startDisplay: String(game.startDisplay||''), leavePDX: String(game.leavePDX||''),
-      arriveby: String(game.arriveby||''), leaveCity: String(game.leaveCity||''),
-      arrivePDX: String(game.arrivePDX||''), flightStr: String(game.flightStr||''),
-      expUrl: String(game.expUrl||''), price: String(price||''),
-      sharedBy, notes, sharedAt: Date.now(),
-      // Store raw UTC ms so shared games reformat correctly on TZ change
-      homeTZ: String(game.homeTZ||'America/Los_Angeles'),
-      flightHours: Number(game.flightHours||0),
-      _msStart: Number(game._msStart||0), _msArr: Number(game._msArr||0),
-      _msLeavePDX: Number(game._msLeavePDX||0), _msLeaveCity: Number(game._msLeaveCity||0),
-      _msArrivePDX: Number(game._msArrivePDX||0)
+      gameId: gameId,
+      matchup: String(game.matchup || ''),
+      dateLabel: String(game.dateLabel || ''),
+      startDisplay: String(game.startDisplay || ''),
+      leavePDX: String(game.leavePDX || ''),
+      arriveby: String(game.arriveby || ''),
+      leaveCity: String(game.leaveCity || ''),
+      arrivePDX: String(game.arrivePDX || ''),
+      flightStr: String(game.flightStr || ''),
+      expUrl: String(game.expUrl || ''),
+      price: String(price || ''),
+      sharedBy: sharedBy,
+      notes: notes,
+      sharedAt: Date.now()
     };
+
     const ref = await addDoc(collection(window.db, 'sharedGames'), data);
     sharedGamesCache.push(Object.assign({ fbId: ref.id }, data));
   } catch(e) {
-    console.error('Share error:', e); alert('Failed to share. Try again.');
-    submitBtn.disabled = false; submitBtn.textContent = 'SHARE'; return;
+    console.error('Share error:', e);
+    alert('Failed to share. Try again.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SHARE';
+    return;
   }
-  try { closeSharePrompt(); } catch(e) {}
-  try { if (currentModalGame && String(currentModalGame.gameId) === gameId) updateSharedBtn(true); } catch(e) {}
-  try { const favBtn = document.getElementById('fav-share-' + gameId); if (favBtn) { favBtn.textContent = '🔗 SHARED'; favBtn.classList.add('shared-active'); } } catch(e) {}
-  try { updateSharedTab(); } catch(e) {}
-  try { if (document.getElementById('tabShared').classList.contains('active')) renderShared(); } catch(e) {}
-  submitBtn.disabled = false; submitBtn.textContent = 'SHARE';
+
+  // Close prompt and update UI. Wrap each UI step in its own try/catch so a
+  // failure in one piece can never leave the user looking at a frozen prompt.
+  try { closeSharePrompt(); } catch(e) { console.error(e); }
+  try {
+    if (currentModalGame && String(currentModalGame.gameId) === gameId) {
+      updateSharedBtn(true);
+    }
+  } catch(e) { console.error(e); }
+  try {
+    const favBtn = document.getElementById('fav-share-' + gameId);
+    if (favBtn) {
+      favBtn.textContent = '🔗 SHARED';
+      favBtn.classList.add('shared-active');
+    }
+  } catch(e) { console.error(e); }
+  try { updateSharedTab(); } catch(e) { console.error(e); }
+  try {
+    if (document.getElementById('tabShared').classList.contains('active')) {
+      renderShared();
+    }
+  } catch(e) { console.error(e); }
+
+  // Reset the SHARE button regardless
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'SHARE';
 }
+
 function scheduleSharedFieldSave(fbId, field, value) {
   clearTimeout(_saSaveTimers[fbId + ':' + field]);
-  _saSaveTimers[fbId + ':' + field] = setTimeout(function(){ saveSharedField(fbId, field, value); }, 600);
+  _saSaveTimers[fbId + ':' + field] = setTimeout(function(){
+    saveSharedField(fbId, field, value);
+  }, 600);
 }
+
 async function saveSharedField(fbId, field, value) {
   const trimmed = (value || '').trim();
   const statusEl = document.getElementById('sa-status-' + fbId + '-' + field);
   try {
-    const { updateDoc, doc } = window.firestoreFns; if (!updateDoc) return;
-    const update = {}; update[field] = trimmed;
+    const { updateDoc, doc } = window.firestoreFns;
+    if (!updateDoc) return;
+    const update = {};
+    update[field] = trimmed;
     await updateDoc(doc(window.db, 'sharedGames', fbId), update);
-    const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; }); if (item) item[field] = trimmed;
-    if (statusEl) { statusEl.textContent = 'saved'; statusEl.style.color = '#3fb68c'; statusEl.style.opacity = '1'; setTimeout(function(){ statusEl.style.opacity = '0'; }, 1200); }
+    const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
+    if (item) item[field] = trimmed;
+    if (statusEl) {
+      statusEl.textContent = 'saved';
+      statusEl.style.color = '#3fb68c';
+      statusEl.style.opacity = '1';
+      setTimeout(function(){ statusEl.style.opacity = '0'; }, 1200);
+    }
   } catch(e) {
     console.error('Update error:', e);
-    if (statusEl) { statusEl.textContent = 'error'; statusEl.style.color = '#ff5f57'; statusEl.style.opacity = '1'; setTimeout(function(){ statusEl.style.opacity = '0'; }, 2000); }
+    if (statusEl) {
+      statusEl.textContent = 'error';
+      statusEl.style.color = '#ff5f57';
+      statusEl.style.opacity = '1';
+      setTimeout(function(){ statusEl.style.opacity = '0'; }, 2000);
+    }
   }
 }
 
-// ─── EDIT SHARED ─────────────────────────────────────────────────────────────
+// ─── EDIT SHARED (tap a shared card to edit Shared by + Notes) ───────────────
 let editingFbId = null;
+
 function openSharedEdit(fbId) {
-  const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; }); if (!item) return;
+  const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
+  if (!item) return;
   editingFbId = fbId;
   document.getElementById('esMatchup').textContent = item.matchup + ' · ' + item.dateLabel;
   document.getElementById('esSharedBy').value = item.sharedBy || '';
   document.getElementById('esNotes').value = item.notes || '';
   document.getElementById('editSharedOverlay').classList.add('open');
 }
-function closeSharedEdit() { document.getElementById('editSharedOverlay').classList.remove('open'); editingFbId = null; }
-function esOutsideClick(e) { if (e.target === document.getElementById('editSharedOverlay')) closeSharedEdit(); }
+
+function closeSharedEdit() {
+  document.getElementById('editSharedOverlay').classList.remove('open');
+  editingFbId = null;
+}
+
+function esOutsideClick(e) {
+  if (e.target === document.getElementById('editSharedOverlay')) closeSharedEdit();
+}
+
 async function submitSharedEdit() {
   if (!editingFbId) return;
   const fbId = editingFbId;
   const sharedBy = (document.getElementById('esSharedBy').value || '').trim();
   const notes = (document.getElementById('esNotes').value || '').trim();
   const submitBtn = document.getElementById('esSubmit');
-  submitBtn.disabled = true; submitBtn.textContent = 'SAVING…';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'SAVING…';
   try {
     const { updateDoc, doc } = window.firestoreFns;
-    if (updateDoc) await updateDoc(doc(window.db, 'sharedGames', fbId), { sharedBy, notes });
+    if (updateDoc) {
+      await updateDoc(doc(window.db, 'sharedGames', fbId), { sharedBy: sharedBy, notes: notes });
+    }
     const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
-    if (item) { item.sharedBy = sharedBy; item.notes = notes; }
+    if (item) {
+      item.sharedBy = sharedBy;
+      item.notes = notes;
+    }
   } catch(e) {
-    console.error('Edit save error:', e); alert('Failed to save. Try again.');
-    submitBtn.disabled = false; submitBtn.textContent = 'SAVE'; return;
+    console.error('Edit save error:', e);
+    alert('Failed to save. Try again.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SAVE';
+    return;
   }
   try { closeSharedEdit(); } catch(e) {}
   try { renderShared(); } catch(e) { console.error(e); }
-  submitBtn.disabled = false; submitBtn.textContent = 'SAVE';
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'SAVE';
 }
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 function initDayChips() {
+  // Default: only Saturday active
   activeDays = new Set([6]);
   document.querySelectorAll('.day-chip').forEach(chip => {
     const dow = parseInt(chip.dataset.dow);
-    if (dow === 6) chip.classList.add('active'); else chip.classList.remove('active');
+    if (dow === 6) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
     chip.addEventListener('click', () => {
-      if (activeDays.has(dow)) { if (activeDays.size === 1) return; activeDays.delete(dow); chip.classList.remove('active'); }
-      else { activeDays.add(dow); chip.classList.add('active'); }
+      if (activeDays.has(dow)) {
+        if (activeDays.size === 1) return; // keep at least one
+        activeDays.delete(dow);
+        chip.classList.remove('active');
+      } else {
+        activeDays.add(dow);
+        chip.classList.add('active');
+      }
       reloadGames();
     });
   });
 }
+
 async function reloadGames() {
   const dot = document.getElementById('statusDot');
   dot.className = 'status-dot loading';
@@ -1036,36 +1917,145 @@ async function reloadGames() {
   try {
     const games = await fetchGamesByDays(activeDays);
     dot.className = 'status-dot ready';
-    if (!games.length) { document.getElementById('main').innerHTML = '<div class="empty-state">No upcoming games found.</div>'; return; }
-    const codes = new Set(); allGames = []; cardStore = {};
-    for (const {date, game} of games) {
-      const result = buildCard(date, game); if (!result) continue;
-      codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, arriveby: result.arriveby, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html, _msStart: result._msStart, _msArr: result._msArr, _msLeavePDX: result._msLeavePDX, _msLeaveCity: result._msLeaveCity, _msArrivePDX: result._msArrivePDX, homeTZ: result.homeTZ });
+    if (!games.length) {
+      document.getElementById('main').innerHTML = '<div class="empty-state">No upcoming games found for selected days.</div>';
+      return;
     }
-    buildFilterChips(codes); render();
-  } catch(err) { dot.className = 'status-dot error'; document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`; }
+    const codes = new Set();
+    allGames = [];
+    for (const {date, game} of games) {
+      const result = buildCard(date, game);
+      if (!result) continue;
+      codes.add(result.homeCode);
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+    }
+    buildFilterChips(codes);
+    render();
+  } catch(err) {
+    dot.className = 'status-dot error';
+    document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
+  }
 }
+
 async function init() {
   initDayChips();
-  initTZSetting();
   const dot = document.getElementById('statusDot');
   try {
     const games = await fetchGamesByDays(activeDays);
     dot.className = 'status-dot ready';
-    if (!games.length) { document.getElementById('main').innerHTML = '<div class="empty-state">No remaining games found.</div>'; return; }
-    const codes = new Set(); allGames = []; cardStore = {};
-    for (const {date, game} of games) {
-      const result = buildCard(date, game); if (!result) continue;
-      codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, arriveby: result.arriveby, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html, _msStart: result._msStart, _msArr: result._msArr, _msLeavePDX: result._msLeavePDX, _msLeaveCity: result._msLeaveCity, _msArrivePDX: result._msArrivePDX, homeTZ: result.homeTZ });
+
+    if (!games.length) {
+      document.getElementById('main').innerHTML = `<div class="empty-state">No remaining Saturday games found.</div>`;
+      return;
     }
-    buildFilterChips(codes); render(); updateFavTab();
+
+    const codes = new Set();
+    allGames = [];
+    for (const {date, game} of games) {
+      const result = buildCard(date, game);
+      if (!result) continue;
+      codes.add(result.homeCode);
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+    }
+
+    buildFilterChips(codes);
+    render();
+    updateFavTab();
     getSharedGames().then(() => updateSharedTab());
-  } catch(err) { dot.className = 'status-dot error'; document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`; }
+  } catch(err) {
+    dot.className = 'status-dot error';
+    document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
+  }
 }
+
 init();
 </script>
 
+<!-- Filter Panel -->
+
+<div class="fp-overlay" id="fpOverlay" onclick="fpOutsideClick(event)">
+  <div class="fp-sheet">
+    <div class="fp-handle"></div>
+    <div class="fp-title">⚙ FILTER GAMES</div>
+
+```
+<div class="fp-group">
+  <div class="fp-label">✈ Max Flight Duration (hours)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpMaxFlight" type="number" inputmode="decimal" placeholder="e.g. 3" min="0" max="12" step="0.5">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">🛫 Leave PDX — Between (ET)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpLeavePDXFrom" type="time" placeholder="05:00">
+    <span class="fp-sep">–</span>
+    <input class="fp-input" id="fpLeavePDXTo" type="time" placeholder="10:00">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">🛬 Arrive Back in PDX — Between (ET)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpReturnFrom" type="time" placeholder="20:00">
+    <span class="fp-sep">–</span>
+    <input class="fp-input" id="fpReturnTo" type="time" placeholder="23:59">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">💰 Max Price Found ($)</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpMaxPrice" type="number" inputmode="decimal" placeholder="e.g. 350" min="0">
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">📅 Month</div>
+  <div class="fp-row">
+    <select class="fp-input" id="fpMonth">
+      <option value="">Any month</option>
+      <option value="3">March</option>
+      <option value="4">April</option>
+      <option value="5">May</option>
+      <option value="6">June</option>
+      <option value="7">July</option>
+      <option value="8">August</option>
+      <option value="9">September</option>
+      <option value="10">October</option>
+    </select>
+  </div>
+</div>
+
+<div class="fp-group">
+  <div class="fp-label">⏰ Game Start Time (local) — Between</div>
+  <div class="fp-row">
+    <input class="fp-input" id="fpStartFrom" type="time" placeholder="12:00">
+    <span class="fp-sep">–</span>
+    <input class="fp-input" id="fpStartTo" type="time" placeholder="20:00">
+  </div>
+</div>
+
+<div class="fp-actions">
+  <button class="fp-clear" onclick="clearFilters()">CLEAR</button>
+  <button class="fp-apply" onclick="applyFilters()">APPLY FILTERS</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- Favorites View -->
+
+<div id="favsView" style="display:none; padding:10px 10px 40px;">
+  <div id="favsContent"></div>
+</div>
+
+<!-- Shared Games View -->
+
+<div id="sharedView" style="display:none; padding:10px 10px 40px;">
+  <div id="sharedContent"><div class="shared-loading">Loading shared games…</div></div>
+</div>
 </body>
 </html>
