@@ -838,6 +838,27 @@ background: #2a1a4a;
 }
 </style>
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
+    authDomain: "mlb-games-5f69c.firebaseapp.com",
+    projectId: "mlb-games-5f69c",
+    storageBucket: "mlb-games-5f69c.firebasestorage.app",
+    messagingSenderId: "936760247178",
+    appId: "1:936760247178:web:ddc48fb1dc13b2629bbe73",
+    measurementId: "G-0XGY8WW9PQ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  getAnalytics(app);
+  window.db = getFirestore(app);
+  window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy };
+</script>
+
 </head>
 <body>
 
@@ -898,7 +919,7 @@ background: #2a1a4a;
   </div>
 </div>
 
-<script type="module">
+<script>
 // ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
   109: ['ARI', 'Phoenix',      'America/Phoenix',     'PHX', 2.5],
@@ -1389,30 +1410,17 @@ function switchTab(tab) {
 
 
 // ─── FIREBASE ─────────────────────────────────────────────────────────────────
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
-  authDomain: "mlb-games-5f69c.firebaseapp.com",
-  projectId: "mlb-games-5f69c",
-  storageBucket: "mlb-games-5f69c.firebasestorage.app",
-  messagingSenderId: "936760247178",
-  appId: "1:936760247178:web:ddc48fb1dc13b2629bbe73",
-  measurementId: "G-0XGY8WW9PQ"
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-const analytics = getAnalytics(firebaseApp);
-const db = getFirestore(firebaseApp);
+// db is initialized by the module script below and exposed as window.db
+let db = null;
 
 // ─── SHARED GAMES (FIREBASE) ──────────────────────────────────────────────────
 let sharedGamesCache = [];
 
 async function getSharedGames() {
+  if (!window.db) return [];
   try {
-    const q = query(collection(db, 'sharedGames'), orderBy('sharedAt', 'desc'));
+    const { collection, getDocs, query, orderBy } = window.firestoreFns;
+    const q = query(collection(window.db, 'sharedGames'), orderBy('sharedAt', 'desc'));
     const snap = await getDocs(q);
     sharedGamesCache = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
     return sharedGamesCache;
@@ -1435,19 +1443,21 @@ async function toggleShared() {
   if (existing) {
     // Remove from Firebase
     try {
-      await deleteDoc(doc(db, 'sharedGames', existing.fbId));
+      const { deleteDoc, doc } = window.firestoreFns;
+      await deleteDoc(doc(window.db, 'sharedGames', existing.fbId));
       sharedGamesCache = sharedGamesCache.filter(g => g.gameId !== gameId);
       updateSharedBtn(false);
     } catch(e) { console.error('Delete error:', e); }
   } else {
     // Add to Firebase
     try {
+      const { addDoc, collection } = window.firestoreFns;
       const data = {
         ...currentModalGame,
         gameId,
         sharedAt: Date.now(),
       };
-      const ref = await addDoc(collection(db, 'sharedGames'), data);
+      const ref = await addDoc(collection(window.db, 'sharedGames'), data);
       sharedGamesCache.push({ fbId: ref.id, ...data });
       updateSharedBtn(true);
     } catch(e) { console.error('Add error:', e); }
@@ -1458,7 +1468,8 @@ async function toggleShared() {
 
 async function removeShared(fbId) {
   try {
-    await deleteDoc(doc(db, 'sharedGames', fbId));
+    const { deleteDoc, doc } = window.firestoreFns;
+    await deleteDoc(doc(window.db, 'sharedGames', fbId));
     sharedGamesCache = sharedGamesCache.filter(g => g.fbId !== fbId);
     renderShared();
     updateSharedTab();
