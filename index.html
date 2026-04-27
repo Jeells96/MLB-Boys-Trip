@@ -356,6 +356,45 @@
 </div>
 
 <script>
+
+// ─── REFORMAT TIMES FROM RAW UTC MS ──────────────────────────────────────────
+// Call this on any object that has _msStart, _msArr etc. to reformat all times
+// based on the current tzSetting. Returns updated time strings.
+function reformatTimes(obj) {
+  if (!obj || !obj._msStart) return obj;
+  const dispTZ   = getDisplayTZ(obj.homeTZ || 'America/Los_Angeles');
+  const pdxDispTZ = getDisplayTZ('America/Los_Angeles');
+  obj.startDisplay = obj._msStart   ? toTZ(new Date(obj._msStart),   dispTZ)    : '—';
+  obj.arriveby     = obj._msArr      ? toTZ(new Date(obj._msArr),     dispTZ)    : '—';
+  obj.leavePDX     = obj._msLeavePDX ? toTZ(new Date(obj._msLeavePDX), pdxDispTZ) : '—';
+  obj.leaveCity    = obj._msLeaveCity ? toTZ(new Date(obj._msLeaveCity), dispTZ)  : '—';
+  obj.arrivePDX    = obj._msArrivePDX ? toTZ(new Date(obj._msArrivePDX), pdxDispTZ) : '—';
+  return obj;
+}
+
+// Rebuild the HTML for a single allGames entry after a TZ change
+function rebuildCardHTML(g) {
+  reformatTimes(g);
+  const dispTZ   = getDisplayTZ(g.homeTZ || 'America/Los_Angeles');
+  const pdxDispTZ = getDisplayTZ('America/Los_Angeles');
+  const tz = tzSetting === 'et' ? 'ET' : 'PT';
+  const pid = 'price-' + g.gameId;
+  let savedPrice = ''; try { savedPrice = localStorage.getItem(pid)||''; } catch(e) {}
+  // matchup stored as "ARI @ COL", display as "ARI@COL" on small card
+  const matchupSmall = (g.matchup||'').replace(' @ ','@');
+  const cid = 'c' + g.gameId;
+  g.html = `<div class="game-card" onclick="openModal('${g.matchup}','${g.dateLabel}','${g.leavePDX}','${g.arriveby}','${g.leaveCity}','${g.arrivePDX}','${g.flightStr}','${g.expUrl}','${g.gameId}','${g.startDisplay}')">
+      <div class="card-head"><div class="matchup">${matchupSmall}</div><div class="card-meta"><strong>${g.homeCity}</strong><br>${g.startDisplay}</div></div>
+      <div class="card-flight"><span class="flight-badge">✈${g.flightStr||''}</span><a class="expedia-btn" href="${g.expUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">$$</a></div>
+      <div class="card-timing">
+        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${g.leavePDX} ${tz}</span></div>
+        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${g.arriveby}</span></div>
+        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${g.arrivePDX} ${tz}</span></div>
+      </div>
+      <div class="card-price"><span class="p-label">$</span><input class="p-input" type="text" inputmode="decimal" placeholder="price" value="${savedPrice}" onclick="event.stopPropagation()" onchange="savePrice('${pid}',this.value)"></div>
+    </div>`;
+}
+
 // ─── TZ SETTING ──────────────────────────────────────────────────────────────
 let tzSetting = 'local';
 try { tzSetting = localStorage.getItem('mlb_tz_setting') || 'local'; } catch(e) {}
@@ -372,7 +411,22 @@ function setTZ(val) {
   try { localStorage.setItem('mlb_tz_setting', val); } catch(e) {}
   document.getElementById('tzCheckLocal').style.opacity = val === 'local' ? '1' : '0';
   document.getElementById('tzCheckET').style.opacity   = val === 'et'    ? '1' : '0';
-  reloadGames();
+  // Reformat all game cards from stored UTC ms — no re-fetch needed
+  for (const g of allGames) rebuildCardHTML(g);
+  render();
+  // Re-render active tab if it shows times
+  if (document.getElementById('tabFavs').classList.contains('active')) renderFavs();
+  if (document.getElementById('tabShared').classList.contains('active')) renderShared();
+  // If modal is open, refresh its times too
+  if (currentModalGame && currentModalGame._msStart) {
+    reformatTimes(currentModalGame);
+    const tz = tzSetting === 'et' ? 'ET' : 'PT';
+    document.getElementById('mTiming').innerHTML = `
+      <div class="mt-item"><div class="mt-label">Leave PDX</div><div class="mt-val y">${currentModalGame.leavePDX} ${tz}</div></div>
+      <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${currentModalGame.arriveby}</div></div>
+      <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${currentModalGame.leaveCity}</div></div>
+      <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${currentModalGame.arrivePDX} ${tz}</div></div>`;
+  }
 }
 function initTZSetting() {
   document.getElementById('tzCheckLocal').style.opacity = tzSetting === 'local' ? '1' : '0';
@@ -434,7 +488,7 @@ function expediaURL(iata, dateStr) {
 
 // ─── MODAL ───────────────────────────────────────────────────────────────────
 function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
-  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay || '' };
+  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay || '', _msStart, _msArr, _msLeavePDX, _msLeaveCity, _msArrivePDX, homeTZ, flightHours };
   document.getElementById('mMatchup').textContent = matchup;
   document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
   document.getElementById('mLink').href = expUrl;
@@ -506,19 +560,24 @@ function buildCard(dateStr, game) {
   const pdxDispTZ = getDisplayTZ('America/Los_Angeles');
 
   let gameStartUTC = null, startDisplay = 'TBD';
+  // Store raw UTC ms for all key moments so we can reformat on TZ change
+  let _msStart=0, _msArr=0, _msLeavePDX=0, _msLeaveCity=0, _msArrivePDX=0;
   if (game.gameDate) {
     gameStartUTC = new Date(game.gameDate);
+    _msStart = gameStartUTC.getTime();
     startDisplay = toTZ(gameStartUTC, dispTZ);
   }
   let leavePDX = '—', arriveby = '—', leaveCity = '—', arrivePDX = '—';
-  let leaveCityUTC = null;
   if (gameStartUTC) {
     const arrTime = addHours(gameStartUTC, -3);
+    _msArr       = arrTime.getTime();
+    _msLeavePDX  = addHours(arrTime, -(flightHours+1)).getTime();
+    _msLeaveCity = addHours(gameStartUTC, 6).getTime();
+    _msArrivePDX = addHours(new Date(_msLeaveCity), flightHours).getTime();
     arriveby  = toTZ(arrTime, dispTZ);
-    leavePDX  = toTZ(addHours(arrTime, -(flightHours+1)), pdxDispTZ);
-    leaveCityUTC = addHours(gameStartUTC, 6);
-    leaveCity = toTZ(leaveCityUTC, dispTZ);
-    arrivePDX = toTZ(addHours(leaveCityUTC, flightHours), pdxDispTZ);
+    leavePDX  = toTZ(new Date(_msLeavePDX), pdxDispTZ);
+    leaveCity = toTZ(new Date(_msLeaveCity), dispTZ);
+    arrivePDX = toTZ(new Date(_msArrivePDX), pdxDispTZ);
   }
 
   const tz = tzSetting === 'et' ? 'ET' : 'PT';
@@ -554,7 +613,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, flightHours, leavePDX, leaveCity, arrivePDX, savedPrice, startDisplay, html };
+  return { homeCity, homeCode, flightHours, leavePDX, arriveby, leaveCity, arrivePDX, savedPrice, startDisplay, html, _msStart, _msArr, _msLeavePDX, _msLeaveCity, _msArrivePDX, homeTZ };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -698,10 +757,10 @@ function renderFavs() {
         <button class="fav-remove" onclick="removeFav('${f.gameId}')">✕</button>
       </div>
       <div class="fav-timing">
-        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${f.leavePDX} ${tz}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${f.arriveby}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${f.leaveCity}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${f.arrivePDX} ${tz}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${reformatTimes(f).leavePDX} ${tz}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${reformatTimes(f).arriveby}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${reformatTimes(f).leaveCity}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${reformatTimes(f).arrivePDX} ${tz}</div></div>
       </div>
       <div class="fav-footer">
         <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
@@ -809,10 +868,10 @@ function renderShared() {
         <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
       </div>
       <div class="shared-timing">
-        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${f.leavePDX} ${tz}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${f.arriveby}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${f.leaveCity}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${f.arrivePDX} ${tz}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${reformatTimes(f).leavePDX} ${tz}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${reformatTimes(f).arriveby}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${reformatTimes(f).leaveCity}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${reformatTimes(f).arrivePDX} ${tz}</div></div>
       </div>
       ${notesLine}
       <div class="shared-footer">
@@ -853,7 +912,13 @@ async function submitSharePrompt() {
       arriveby: String(game.arriveby||''), leaveCity: String(game.leaveCity||''),
       arrivePDX: String(game.arrivePDX||''), flightStr: String(game.flightStr||''),
       expUrl: String(game.expUrl||''), price: String(price||''),
-      sharedBy, notes, sharedAt: Date.now()
+      sharedBy, notes, sharedAt: Date.now(),
+      // Store raw UTC ms so shared games reformat correctly on TZ change
+      homeTZ: String(game.homeTZ||'America/Los_Angeles'),
+      flightHours: Number(game.flightHours||0),
+      _msStart: Number(game._msStart||0), _msArr: Number(game._msArr||0),
+      _msLeavePDX: Number(game._msLeavePDX||0), _msLeaveCity: Number(game._msLeaveCity||0),
+      _msArrivePDX: Number(game._msArrivePDX||0)
     };
     const ref = await addDoc(collection(window.db, 'sharedGames'), data);
     sharedGamesCache.push(Object.assign({ fbId: ref.id }, data));
@@ -948,7 +1013,7 @@ async function reloadGames() {
     for (const {date, game} of games) {
       const result = buildCard(date, game); if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, arriveby: result.arriveby, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html, _msStart: result._msStart, _msArr: result._msArr, _msLeavePDX: result._msLeavePDX, _msLeaveCity: result._msLeaveCity, _msArrivePDX: result._msArrivePDX, homeTZ: result.homeTZ });
     }
     buildFilterChips(codes); render();
   } catch(err) { dot.className = 'status-dot error'; document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`; }
@@ -965,7 +1030,7 @@ async function init() {
     for (const {date, game} of games) {
       const result = buildCard(date, game); if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, arriveby: result.arriveby, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html, _msStart: result._msStart, _msArr: result._msArr, _msLeavePDX: result._msLeavePDX, _msLeaveCity: result._msLeaveCity, _msArrivePDX: result._msArrivePDX, homeTZ: result.homeTZ });
     }
     buildFilterChips(codes); render(); updateFavTab();
     getSharedGames().then(() => updateSharedTab());
