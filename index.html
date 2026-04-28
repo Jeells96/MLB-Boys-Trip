@@ -1103,10 +1103,6 @@ text-align: right;
           <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">Leave city this many hours after game start</div>
           <input class="fp-input" id="settingPostGame" type="number" inputmode="decimal" min="0" max="24" step="0.5" placeholder="6">
         </div>
-        <div>
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">Arrive at PDX this many hours before flight</div>
-          <input class="fp-input" id="settingPreFlight" type="number" inputmode="decimal" min="0" max="6" step="0.25" placeholder="1">
-        </div>
       </div>
     </div>
     <div class="fp-actions">
@@ -1262,10 +1258,9 @@ function setTzMode(mode) {
 }
 
 // Buffer settings (in hours). Defaults: 3h to arrive at the stadium before game,
-// 6h after game start to head back to the airport, 1h pre-flight cushion at PDX.
+// 6h after game start to head back to the airport.
 const DEFAULT_PRE_GAME_BUFFER  = 3;   // hours: between landing in city + reaching stadium + game start
 const DEFAULT_POST_GAME_BUFFER = 6;   // hours: from game start until heading back to airport
-const DEFAULT_PRE_FLIGHT_PDX   = 1;   // hours: how early to leave PDX before flight departs
 
 function getPreGameBuffer() {
   try {
@@ -1279,12 +1274,6 @@ function getPostGameBuffer() {
     return (isFinite(v) && v >= 0) ? v : DEFAULT_POST_GAME_BUFFER;
   } catch(e) { return DEFAULT_POST_GAME_BUFFER; }
 }
-function getPreFlightPDX() {
-  try {
-    const v = parseFloat(localStorage.getItem('mlb_pre_flight_pdx'));
-    return (isFinite(v) && v >= 0) ? v : DEFAULT_PRE_FLIGHT_PDX;
-  } catch(e) { return DEFAULT_PRE_FLIGHT_PDX; }
-}
 
 function openSettings() {
   const mode = getTzMode();
@@ -1292,7 +1281,6 @@ function openSettings() {
   document.getElementById('tzModeLocal').checked = (mode === 'local');
   document.getElementById('settingPreGame').value = getPreGameBuffer();
   document.getElementById('settingPostGame').value = getPostGameBuffer();
-  document.getElementById('settingPreFlight').value = getPreFlightPDX();
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings() {
@@ -1308,18 +1296,15 @@ function saveSettings() {
 
   const oldPre = getPreGameBuffer();
   const oldPost = getPostGameBuffer();
-  const oldFlight = getPreFlightPDX();
   const newPre = parseFloat(document.getElementById('settingPreGame').value);
   const newPost = parseFloat(document.getElementById('settingPostGame').value);
-  const newFlight = parseFloat(document.getElementById('settingPreFlight').value);
   try {
     if (isFinite(newPre) && newPre >= 0) localStorage.setItem('mlb_pre_game_buffer', String(newPre));
     if (isFinite(newPost) && newPost >= 0) localStorage.setItem('mlb_post_game_buffer', String(newPost));
-    if (isFinite(newFlight) && newFlight >= 0) localStorage.setItem('mlb_pre_flight_pdx', String(newFlight));
   } catch(e) {}
 
   closeSettings();
-  const changed = (newMode !== oldMode) || (newPre !== oldPre) || (newPost !== oldPost) || (newFlight !== oldFlight);
+  const changed = (newMode !== oldMode) || (newPre !== oldPre) || (newPost !== oldPost);
   if (changed) {
     try { reloadGames(); } catch(e) { console.error(e); }
     try { if (document.getElementById('tabFavs').classList.contains('active')) renderFavs(); } catch(e) {}
@@ -1363,7 +1348,7 @@ function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameSt
   document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr} · 🚗 ${driveMinutes}min`;
   document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
-    <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Flight departs PDX</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Land in city</div><div class="mt-val b">${t.landInCity}${t.landInCityTZ ? ' ' + t.landInCityTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Arrive at stadium</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Game start</div><div class="mt-val g">${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div></div>
@@ -1481,7 +1466,6 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
   const drive = (typeof driveMinutes === 'number' && driveMinutes >= 0) ? driveMinutes : 30;
   const preGame  = getPreGameBuffer();   // hrs before game to be at the stadium
   const postGame = getPostGameBuffer();  // hrs after game start to leave the city
-  const preFlight = getPreFlightPDX();   // hrs before flight to leave PDX
 
   if (!gameStartUTCms || isNaN(gameStartUTCms)) {
     return {
@@ -1502,10 +1486,8 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
   const arriveStadiumUTC = new Date(gameStartUTCms - preGame * 3600000);
   // Land in city = arriveStadium - drive
   const landInCityUTC = new Date(arriveStadiumUTC.getTime() - drive * 60000);
-  // Flight depart PDX = land in city - flight hours
-  const flightDepartUTC = new Date(landInCityUTC.getTime() - flightHours * 3600000);
-  // Leave PDX = flight depart - preFlight cushion
-  const leavePDXUTC = new Date(flightDepartUTC.getTime() - preFlight * 3600000);
+  // Leave PDX = flight depart = land in city - flight hours
+  const leavePDXUTC = new Date(landInCityUTC.getTime() - flightHours * 3600000);
   const leaveCityUTC = new Date(gameStartUTCms + postGame * 3600000);
   const arrivePDXUTC = new Date(leaveCityUTC.getTime() + flightHours * 3600000);
 
