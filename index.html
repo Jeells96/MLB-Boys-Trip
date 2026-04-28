@@ -1133,6 +1133,98 @@ function getTeamInfo(id) {
   return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0];
 }
 
+// Reverse lookup: team CODE (e.g. 'NYY') -> { homeTZ, flightHours }.
+// Built lazily on first call.
+let _teamByCode = null;
+function getTeamByCode(code) {
+  if (!_teamByCode) {
+    _teamByCode = {};
+    for (const id in TEAM_INFO) {
+      const row = TEAM_INFO[id];
+      _teamByCode[row[0]] = { homeTZ: row[2], flightHours: row[4] };
+    }
+  }
+  return _teamByCode[code] || null;
+}
+
+// Parse a matchup string like "BAL@NYY" or "BAL @ NYY" -> "NYY"
+function getHomeCodeFromMatchup(matchup) {
+  if (!matchup) return null;
+  const parts = String(matchup).split('@');
+  if (parts.length < 2) return null;
+  return parts[1].trim().split(' ')[0].trim();
+}
+
+// Parse a dateLabel like "Sat, May 2" plus an ET time like "1:35 PM" into UTC ms.
+// Returns null on failure. Year is assumed to be the current year (or next year if
+// the date has already passed).
+function deriveGameStartUTCms(dateLabel, etTimeStr) {
+  if (!dateLabel || !etTimeStr) return null;
+  try {
+    // Match "Sat, May 2" -> month name, day
+    const dm = String(dateLabel).match(/(\w{3,9})\s+(\d{1,2})/);
+    if (!dm) return null;
+    const monthName = dm[1];
+    const day = parseInt(dm[2]);
+    const months = {
+      Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11,
+      January:0,February:1,March:2,April:3,June:5,July:6,August:7,September:8,October:9,November:10,December:11
+    };
+    if (!(monthName in months)) return null;
+    const mo = months[monthName];
+
+    // Parse "1:35 PM" or "11:05 PM"
+    const tm = String(etTimeStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!tm) return null;
+    let hh = parseInt(tm[1]);
+    const mm = parseInt(tm[2]);
+    const ampm = tm[3].toUpperCase();
+    if (ampm === 'PM' && hh !== 12) hh += 12;
+    if (ampm === 'AM' && hh === 12) hh = 0;
+
+    // Pick the year: current year, or next year if the resulting date is more than ~30 days in the past
+    const now = new Date();
+    let year = now.getFullYear();
+    // Build candidate as a UTC moment using the ET offset for that day. We approximate
+    // by using a fixed offset of -4h (EDT) for May–Oct and -5h (EST) otherwise. MLB regular
+    // season runs late March through October so DST applies for the vast majority of games.
+    const isDST = (mo >= 2 && mo <= 9); // March (2) through Oct (9) approx
+    const offsetH = isDST ? 4 : 5; // ET is UTC-(4 or 5)
+    let utcMs = Date.UTC(year, mo, day, hh + offsetH, mm);
+    // If the derived date is more than 60 days in the past, assume it's actually next year
+    if (utcMs < now.getTime() - 60 * 24 * 3600000) {
+      utcMs = Date.UTC(year + 1, mo, day, hh + offsetH, mm);
+    }
+    return utcMs;
+  } catch(e) { return null; }
+}
+
+// Given a card-like object that may be missing homeTZ/gameStartUTCms/flightHours
+// (e.g. an old favorite or shared doc), try to backfill those fields so
+// computeTimes() can render in either tz mode. Returns the same object for
+// chaining; mutates in place.
+function backfillTzData(f) {
+  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) return f;
+  // Try home team code -> timezone + flightHours
+  if (f.homeTZ == null || f.flightHours == null) {
+    const homeCode = getHomeCodeFromMatchup(f.matchup);
+    const info = homeCode ? getTeamByCode(homeCode) : null;
+    if (info) {
+      if (f.homeTZ == null) f.homeTZ = info.homeTZ;
+      if (f.flightHours == null) f.flightHours = info.flightHours;
+    }
+  }
+  // Derive gameStartUTCms from arriveby (which equals gameStart - 3h, displayed in ET)
+  // The stored arriveby on old data is ET. Adding 3h gives the game start in ET.
+  if (!f.gameStartUTCms && f.arriveby && f.dateLabel) {
+    const arrUtc = deriveGameStartUTCms(f.dateLabel, f.arriveby);
+    if (arrUtc) {
+      f.gameStartUTCms = arrUtc + 3 * 3600000;
+    }
+  }
+  return f;
+}
+
 // ─── SETTINGS / TIMEZONE MODE ─────────────────────────────────────────────────
 // 'et' = all times shown in Eastern (default).
 // 'local' = each location shown in its local timezone (PDX in PT, home in home tz).
@@ -1629,6 +1721,7 @@ function renderFavs() {
     // Otherwise fall back to whatever was saved (older favorites stored ET strings).
     let leavePDX, arriveby, leaveCity, arrivePDX;
     let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET';
+    backfillTzData(f);
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
       const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
@@ -1814,6 +1907,7 @@ function renderShared() {
     // Recompute times from raw data if available (newer shares); otherwise use stored ET strings.
     let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay;
     let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET';
+    backfillTzData(f);
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
       const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
