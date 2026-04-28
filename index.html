@@ -969,6 +969,7 @@ text-align: right;
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
       <div class="filter-panel-btn" id="fpBtn" onclick="openFilterPanel()">⚙ FILTERS</div>
+      <div class="filter-panel-btn" id="settingsBtn" onclick="openSettings()" style="margin-left:0;padding:3px 6px;" title="Settings">⚙</div>
       <div class="status-dot loading" id="statusDot"></div>
     </div>
   </div>
@@ -1062,6 +1063,38 @@ text-align: right;
   </div>
 </div>
 
+<!-- Settings Overlay -->
+
+<div class="fp-overlay" id="settingsOverlay" onclick="settingsOutsideClick(event)">
+  <div class="fp-sheet">
+    <div class="fp-handle"></div>
+    <div class="fp-title">⚙ SETTINGS</div>
+    <div class="fp-group">
+      <div class="fp-label">Time display</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="tzMode" value="et" id="tzModeEt">
+          <div style="flex:1;">
+            <div style="font-family:'DM Mono',monospace;font-size:12px;color:#e6edf3;">All Eastern (ET)</div>
+            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px;">Every time shown in ET</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="tzMode" value="local" id="tzModeLocal">
+          <div style="flex:1;">
+            <div style="font-family:'DM Mono',monospace;font-size:12px;color:#e6edf3;">Each location's local time</div>
+            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px;">Leave PDX (PT), arrive (local), leave city (local), arrive PDX (PT), game time (local)</div>
+          </div>
+        </label>
+      </div>
+    </div>
+    <div class="fp-actions">
+      <button class="fp-clear" onclick="closeSettings()">CANCEL</button>
+      <button class="fp-apply" onclick="saveSettings()">SAVE</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
@@ -1100,6 +1133,44 @@ function getTeamInfo(id) {
   return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0];
 }
 
+// ─── SETTINGS / TIMEZONE MODE ─────────────────────────────────────────────────
+// 'et' = all times shown in Eastern (default).
+// 'local' = each location shown in its local timezone (PDX in PT, home in home tz).
+function getTzMode() {
+  try {
+    const v = localStorage.getItem('mlb_tz_mode');
+    return (v === 'local') ? 'local' : 'et';
+  } catch(e) { return 'et'; }
+}
+function setTzMode(mode) {
+  try { localStorage.setItem('mlb_tz_mode', mode === 'local' ? 'local' : 'et'); } catch(e) {}
+}
+
+function openSettings() {
+  const mode = getTzMode();
+  document.getElementById('tzModeEt').checked = (mode === 'et');
+  document.getElementById('tzModeLocal').checked = (mode === 'local');
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+function settingsOutsideClick(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+}
+function saveSettings() {
+  const newMode = document.getElementById('tzModeLocal').checked ? 'local' : 'et';
+  const oldMode = getTzMode();
+  setTzMode(newMode);
+  closeSettings();
+  if (newMode !== oldMode) {
+    // Re-render everything that shows times
+    try { reloadGames(); } catch(e) { console.error(e); }
+    try { if (document.getElementById('tabFavs').classList.contains('active')) renderFavs(); } catch(e) {}
+    try { if (document.getElementById('tabShared').classList.contains('active')) renderShared(); } catch(e) {}
+  }
+}
+
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function addHours(date, h) { return new Date(date.getTime() + h * 3600000); }
 function toTZ(date, tz) {
@@ -1118,15 +1189,26 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, gameId, startDisplay) {
-  currentModalGame = { gameId, matchup, dateLabel, leavePDX, arriveby, leaveCity, arrivePDX, flightStr, expUrl, startDisplay: startDisplay || '' };
+function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr) {
+  const gameStartUTCms = gameStartUTCmsStr ? parseInt(gameStartUTCmsStr) : null;
+  const flightHours = parseFloat(flightHoursStr) || 0;
+  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode());
+  currentModalGame = {
+    gameId, matchup, dateLabel, flightStr, expUrl,
+    homeTZ: homeTZ || '',
+    gameStartUTCms: gameStartUTCms || 0,
+    flightHours: flightHours,
+    // Snapshots in current display mode (used by favorites which serializes this object)
+    leavePDX: t.leavePDX, arriveby: t.arriveby, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX,
+    startDisplay: t.startDisplay
+  };
   document.getElementById('mMatchup').textContent = matchup;
   document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
   document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
-    <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${leavePDX} ET</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${arriveby} ET</div></div>
-    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${leaveCity} ET</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${arrivePDX} ET</div></div>
+    <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
   `;
   updateFavBtn(isFavorited(gameId));
   updateSharedBtn(isShared(gameId));
@@ -1187,6 +1269,67 @@ async function fetchGamesByDays(dowSet) {
 }
 
 // ─── BUILD CARD ───────────────────────────────────────────────────────────────
+
+// Map IANA timezone to a short label (PT/MT/CT/ET).
+function tzShort(iana) {
+  if (!iana) return '';
+  if (iana === 'America/Los_Angeles') return 'PT';
+  if (iana === 'America/Phoenix') return 'MT';
+  if (iana === 'America/Denver') return 'MT';
+  if (iana === 'America/Chicago') return 'CT';
+  if (iana === 'America/New_York') return 'ET';
+  if (iana === 'America/Toronto') return 'ET';
+  return '';
+}
+
+// Compute display strings for all 5 times (game start + 4 trip legs) given:
+//   gameStartUTCms - the game start time in ms since epoch
+//   homeTZ         - IANA tz for the home stadium
+//   flightHours    - one-way flight duration from PDX
+//   mode           - 'et' (everything ET) or 'local' (each location's local tz)
+// Returns: { startDisplay, startTZ, leavePDX, leavePDXTZ, arriveby, arrivebyTZ,
+//            leaveCity, leaveCityTZ, arrivePDX, arrivePDXTZ }
+function computeTimes(gameStartUTCms, homeTZ, flightHours, mode) {
+  if (!gameStartUTCms || isNaN(gameStartUTCms)) {
+    return {
+      startDisplay: 'TBD', startTZ: '',
+      leavePDX: '—', leavePDXTZ: '',
+      arriveby: '—', arrivebyTZ: '',
+      leaveCity: '—', leaveCityTZ: '',
+      arrivePDX: '—', arrivePDXTZ: ''
+    };
+  }
+  const gameStart = new Date(gameStartUTCms);
+  const arrTimeUTC = new Date(gameStartUTCms - 3 * 3600000);
+  const leavePDXUTC = new Date(arrTimeUTC.getTime() - (flightHours + 1) * 3600000);
+  const leaveCityUTC = new Date(gameStartUTCms + 6 * 3600000);
+  const arrivePDXUTC = new Date(leaveCityUTC.getTime() + flightHours * 3600000);
+
+  let startTZ, leaveTZ, arriveTZ, cityTZ, returnTZ;
+  if (mode === 'local') {
+    startTZ  = homeTZ || 'America/New_York';
+    leaveTZ  = 'America/Los_Angeles'; // PDX
+    arriveTZ = homeTZ || 'America/New_York';
+    cityTZ   = homeTZ || 'America/New_York';
+    returnTZ = 'America/Los_Angeles'; // PDX
+  } else {
+    startTZ = leaveTZ = arriveTZ = cityTZ = returnTZ = 'America/New_York';
+  }
+
+  return {
+    startDisplay: toTZ(gameStart, startTZ),
+    startTZ: tzShort(startTZ),
+    leavePDX: toTZ(leavePDXUTC, leaveTZ),
+    leavePDXTZ: tzShort(leaveTZ),
+    arriveby: toTZ(arrTimeUTC, arriveTZ),
+    arrivebyTZ: tzShort(arriveTZ),
+    leaveCity: toTZ(leaveCityUTC, cityTZ),
+    leaveCityTZ: tzShort(cityTZ),
+    arrivePDX: toTZ(arrivePDXUTC, returnTZ),
+    arrivePDXTZ: tzShort(returnTZ)
+  };
+}
+
 function buildCard(dateStr, game) {
   const away = game.teams?.away?.team;
   const home = game.teams?.home?.team;
@@ -1195,22 +1338,8 @@ function buildCard(dateStr, game) {
   const [awayCode] = getTeamInfo(away.id);
   const [homeCode, homeCity, homeTZ, homeIATA, flightHours] = getTeamInfo(home.id);
 
-  let gameStartUTC = null, startDisplay = 'TBD';
-  if (game.gameDate) {
-    gameStartUTC = new Date(game.gameDate);
-    startDisplay = toTZ(gameStartUTC, 'America/New_York');
-  }
-
-  let leavePDX = '—', arriveby = '—', leaveCity = '—', arrivePDX = '—';
-  let leaveCityUTC = null;
-  if (gameStartUTC) {
-    const arrTime = addHours(gameStartUTC, -3);
-    arriveby     = toTZ(arrTime, 'America/New_York');
-    leavePDX     = toTZ(addHours(arrTime, -(flightHours+1)), 'America/New_York');
-    leaveCityUTC = addHours(gameStartUTC, 6);
-    leaveCity    = toTZ(leaveCityUTC, 'America/New_York');
-    arrivePDX    = toTZ(addHours(leaveCityUTC, flightHours), 'America/New_York');
-  }
+  const gameStartUTCms = game.gameDate ? new Date(game.gameDate).getTime() : null;
+  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode());
 
   const flightStr = flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`;
   const expUrl    = expediaURL(homeIATA, dateStr);
@@ -1221,13 +1350,14 @@ function buildCard(dateStr, game) {
   let savedPrice  = '';
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
-  // Inline card (small)
+  // Inline card (small) — pass extra fields to openModal so the modal/share/fav
+  // path has homeTZ + gameStartUTCms for re-rendering in either tz mode.
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${leavePDX}','${arriveby}','${leaveCity}','${arrivePDX}','${flightStr}','${expUrl}','${game.gamePk}','${startDisplay}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
-        <div class="card-meta"><strong>${homeCity}</strong><br>${startDisplay} ET</div>
+        <div class="card-meta"><strong>${homeCity}</strong><br>${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div>
       </div>
       <div class="card-flight">
         <span class="flight-badge">✈${flightStr}</span>
@@ -1235,9 +1365,9 @@ function buildCard(dateStr, game) {
           onclick="event.stopPropagation()">$$</a>
       </div>
       <div class="card-timing">
-        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${leavePDX} ET</span></div>
-        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${arriveby} ET</span></div>
-        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${arrivePDX} ET</span></div>
+        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</span></div>
+        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</span></div>
+        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</span></div>
       </div>
       <div class="card-price">
         <span class="p-label">$</span>
@@ -1248,7 +1378,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, flightHours, leavePDX, leaveCity, arrivePDX, savedPrice, startDisplay, html };
+  return { homeCity, homeCode, homeTZ, gameStartUTCms, flightHours, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, savedPrice, startDisplay: t.startDisplay, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -1491,9 +1621,24 @@ function renderFavs() {
     el.innerHTML = '<div class="fav-empty">No favorites yet.<br>Open any game card and tap<br>⭐ Save to Favorites.</div>';
     return;
   }
+  const mode = getTzMode();
   el.innerHTML = favs.map(f => {
     const inputId = 'fav-price-' + f.gameId;
     const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
+    // If we have the raw timezone data, recompute times in the current mode.
+    // Otherwise fall back to whatever was saved (older favorites stored ET strings).
+    let leavePDX, arriveby, leaveCity, arrivePDX;
+    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET';
+    if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
+      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode);
+      leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
+      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ;
+    } else {
+      leavePDX = f.leavePDX || '—';
+      arriveby = f.arriveby || '—';
+      leaveCity = f.leaveCity || '—';
+      arrivePDX = f.arrivePDX || '—';
+    }
     return `
     <div class="fav-card" id="fav-card-${f.gameId}">
       <div class="fav-head">
@@ -1504,10 +1649,10 @@ function renderFavs() {
         <button class="fav-remove" onclick="removeFav('${f.gameId}')">✕</button>
       </div>
       <div class="fav-timing">
-        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${f.leavePDX} ET</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${f.arriveby} ET</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${f.leaveCity} ET</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${f.arrivePDX} ET</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${arriveby}${arriveTZ ? ' ' + arriveTZ : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${leaveCity}${cityTZ ? ' ' + cityTZ : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
       </div>
       <div class="fav-footer">
         <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
@@ -1659,12 +1804,30 @@ function renderShared() {
     el.innerHTML = '<div class="shared-empty">No shared games yet.<br>Open any game card and tap<br>🔗 Share This Game.</div>';
     return;
   }
+  const mode = getTzMode();
   el.innerHTML = sharedGamesCache.map(f => {
     const dateStr = new Date(f.sharedAt).toLocaleDateString();
     const byline = f.sharedBy ? (f.sharedBy + ' · ' + dateStr) : ('Shared ' + dateStr);
     const notesLine = f.notes ? `<div class="shared-meta" style="padding:6px 12px;border-top:1px solid var(--border);background:#15131f;">📝 ${f.notes}</div>` : '';
-    const startLine = f.startDisplay ? ` · 🕒 ${f.startDisplay} ET` : '';
     const priceBadge = f.price ? `<span style="color:var(--accent);font-weight:700;margin-right:8px;">$${f.price}</span>` : '';
+
+    // Recompute times from raw data if available (newer shares); otherwise use stored ET strings.
+    let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay;
+    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET';
+    if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
+      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode);
+      leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
+      startDisplay = t.startDisplay;
+      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; startTZ = t.startTZ;
+    } else {
+      leavePDX = f.leavePDX || '—';
+      arriveby = f.arriveby || '—';
+      leaveCity = f.leaveCity || '—';
+      arrivePDX = f.arrivePDX || '—';
+      startDisplay = f.startDisplay || '';
+    }
+    const startLine = startDisplay ? ` · 🕒 ${startDisplay}${startTZ ? ' ' + startTZ : ''}` : '';
+
     return `
     <div class="shared-card" onclick="openSharedEdit('${f.fbId}')">
       <div class="shared-head">
@@ -1675,10 +1838,10 @@ function renderShared() {
         <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
       </div>
       <div class="shared-timing">
-        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${f.leavePDX} ET</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${f.arriveby} ET</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${f.leaveCity} ET</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${f.arrivePDX} ET</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${arriveby}${arriveTZ ? ' ' + arriveTZ : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${leaveCity}${cityTZ ? ' ' + cityTZ : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
       </div>
       ${notesLine}
       <div style="padding:8px 12px;border-top:1px solid var(--border);">
@@ -1756,6 +1919,10 @@ async function submitSharePrompt() {
       arrivePDX: String(game.arrivePDX || ''),
       flightStr: String(game.flightStr || ''),
       expUrl: String(game.expUrl || ''),
+      // Raw fields so the shared card can be re-rendered in either tz mode
+      homeTZ: String(game.homeTZ || ''),
+      gameStartUTCms: Number(game.gameStartUTCms || 0),
+      flightHours: Number(game.flightHours || 0),
       price: String(price || ''),
       sharedBy: sharedBy,
       notes: notes,
