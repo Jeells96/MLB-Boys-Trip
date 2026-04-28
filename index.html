@@ -256,6 +256,7 @@ text-align: right;
 white-space: nowrap;
 }
 .t-val.y { color: #e8c56a; }
+.t-val.b { color: #5ca8ff; }
 .t-val.g { color: #3fb68c; }
 .t-val.r { color: #ff5f57; }
 
@@ -360,6 +361,7 @@ gap: 10px;
 .mt-label { font-family:‘DM Mono’,monospace; font-size:8px; color:var(–muted); text-transform:uppercase; letter-spacing:.4px; }
 .mt-val   { font-family:‘DM Mono’,monospace; font-size:12px; font-weight:500; }
 .mt-val.y { color: #e8c56a; }
+.mt-val.b { color: #5ca8ff; }
 .mt-val.g { color: #3fb68c; }
 .mt-val.r { color: #ff5f57; }
 .modal-expedia-btn {
@@ -641,6 +643,7 @@ font-size: 10px;
 font-weight: 500;
 }
 .fav-t-val.y { color: #e8c56a; }
+.fav-t-val.b { color: #5ca8ff; }
 .fav-t-val.g { color: #3fb68c; }
 .fav-t-val.r { color: #ff5f57; }
 .fav-footer {
@@ -759,6 +762,7 @@ background: #1c1a2e;
 .shared-t-label { font-family:‘DM Mono’,monospace; font-size:8px; color:var(–muted); text-transform:uppercase; letter-spacing:.3px; }
 .shared-t-val   { font-family:‘DM Mono’,monospace; font-size:10px; font-weight:500; }
 .shared-t-val.y { color: #e8c56a; }
+.shared-t-val.b { color: #5ca8ff; }
 .shared-t-val.g { color: #3fb68c; }
 .shared-t-val.r { color: #ff5f57; }
 .shared-footer {
@@ -1360,11 +1364,12 @@ function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameSt
   document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
     <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Land in city</div><div class="mt-val b">${t.landInCity}${t.landInCityTZ ? ' ' + t.landInCityTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Arrive at stadium</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Game start</div><div class="mt-val y">${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Game start</div><div class="mt-val g">${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Game end (~3h)</div><div class="mt-val g">${t.gameEndDisplay}${t.gameEndTZ ? ' ' + t.gameEndTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
   `;
   updateFavBtn(isFavorited(gameId));
   updateSharedBtn(isShared(gameId));
@@ -1483,6 +1488,7 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
       startDisplay: 'TBD', startTZ: '',
       gameEndDisplay: '—', gameEndTZ: '',
       leavePDX: '—', leavePDXTZ: '',
+      landInCity: '—', landInCityTZ: '',
       arriveby: '—', arrivebyTZ: '',
       leaveCity: '—', leaveCityTZ: '',
       arrivePDX: '—', arrivePDXTZ: '',
@@ -1494,9 +1500,11 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
   const gameEndUTC = new Date(gameStartUTCms + 3 * 3600000); // typical MLB game ~3h
   // "Arrive by" = game start - preGame buffer (this is when you should be AT the stadium)
   const arriveStadiumUTC = new Date(gameStartUTCms - preGame * 3600000);
-  // Leave PDX so that: PDX dep -> flight -> land in city -> drive to stadium = arriveStadium
-  // PDX departure = arriveStadium - drive - flight, and we leave PDX preFlight hours before that
-  const flightDepartUTC = new Date(arriveStadiumUTC.getTime() - drive * 60000 - flightHours * 3600000);
+  // Land in city = arriveStadium - drive
+  const landInCityUTC = new Date(arriveStadiumUTC.getTime() - drive * 60000);
+  // Flight depart PDX = land in city - flight hours
+  const flightDepartUTC = new Date(landInCityUTC.getTime() - flightHours * 3600000);
+  // Leave PDX = flight depart - preFlight cushion
   const leavePDXUTC = new Date(flightDepartUTC.getTime() - preFlight * 3600000);
   const leaveCityUTC = new Date(gameStartUTCms + postGame * 3600000);
   const arrivePDXUTC = new Date(leaveCityUTC.getTime() + flightHours * 3600000);
@@ -1519,6 +1527,8 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
     gameEndTZ: tzShort(startTZ),
     leavePDX: toTZ(leavePDXUTC, leaveTZ),
     leavePDXTZ: tzShort(leaveTZ),
+    landInCity: toTZ(landInCityUTC, arriveTZ),
+    landInCityTZ: tzShort(arriveTZ),
     arriveby: toTZ(arriveStadiumUTC, arriveTZ),
     arrivebyTZ: tzShort(arriveTZ),
     leaveCity: toTZ(leaveCityUTC, cityTZ),
@@ -1568,7 +1578,7 @@ function buildCard(dateStr, game) {
       <div class="card-timing">
         <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</span></div>
         <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</span></div>
-        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val r">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</span></div>
+        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</span></div>
       </div>
       <div class="card-price">
         <span class="p-label">$</span>
@@ -1827,13 +1837,13 @@ function renderFavs() {
     const inputId = 'fav-price-' + f.gameId;
     const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
     backfillTzData(f);
-    let leavePDX, arriveby, leaveCity, arrivePDX, gameEnd = '';
-    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', endTZ = 'ET';
+    let leavePDX, arriveby, leaveCity, arrivePDX, gameEnd = '', landInCity = '';
+    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', endTZ = 'ET', landTZ = 'ET';
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
       const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
-      gameEnd = t.gameEndDisplay;
-      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; endTZ = t.gameEndTZ;
+      gameEnd = t.gameEndDisplay; landInCity = t.landInCity;
+      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; endTZ = t.gameEndTZ; landTZ = t.landInCityTZ;
     } else {
       leavePDX = f.leavePDX || '—';
       arriveby = f.arriveby || '—';
@@ -1842,12 +1852,13 @@ function renderFavs() {
     }
     const driveStr = (f.driveMinutes != null) ? (' · 🚗 ' + f.driveMinutes + 'min') : '';
     const endStr = gameEnd ? (' · 🏁 ' + gameEnd + (endTZ ? ' ' + endTZ : '')) : '';
+    const landStr = landInCity ? (' · 🛬 ' + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
     return `
     <div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavDetail('${f.gameId}')">
       <div class="fav-head">
         <div>
           <div class="fav-matchup">${f.matchup}</div>
-          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}${driveStr}${endStr}</div>
+          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}${landStr}${driveStr}${endStr}</div>
         </div>
         <button class="fav-remove" onclick="event.stopPropagation();removeFav('${f.gameId}')">✕</button>
       </div>
@@ -1855,7 +1866,7 @@ function renderFavs() {
         <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
         <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${arriveby}${arriveTZ ? ' ' + arriveTZ : ''}</div></div>
         <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${leaveCity}${cityTZ ? ' ' + cityTZ : ''}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val y">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
       </div>
       <div class="fav-footer">
         <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ FLIGHTS ↗</a>
@@ -2016,13 +2027,13 @@ function renderShared() {
     const priceBadge = f.price ? `<span style="color:var(--accent);font-weight:700;margin-right:8px;">$${f.price}</span>` : '';
 
     backfillTzData(f);
-    let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay, gameEnd = '';
-    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET', endTZ = 'ET';
+    let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay, gameEnd = '', landInCity = '';
+    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET', endTZ = 'ET', landTZ = 'ET';
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
       const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
-      startDisplay = t.startDisplay; gameEnd = t.gameEndDisplay;
-      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; startTZ = t.startTZ; endTZ = t.gameEndTZ;
+      startDisplay = t.startDisplay; gameEnd = t.gameEndDisplay; landInCity = t.landInCity;
+      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; startTZ = t.startTZ; endTZ = t.gameEndTZ; landTZ = t.landInCityTZ;
     } else {
       leavePDX = f.leavePDX || '—';
       arriveby = f.arriveby || '—';
@@ -2033,13 +2044,14 @@ function renderShared() {
     const startLine = startDisplay ? ` · 🕒 ${startDisplay}${startTZ ? ' ' + startTZ : ''}` : '';
     const endLine = gameEnd ? ` · 🏁 ${gameEnd}${endTZ ? ' ' + endTZ : ''}` : '';
     const driveLine = (f.driveMinutes != null) ? ` · 🚗 ${f.driveMinutes}min` : '';
+    const landLine = landInCity ? ` · 🛬 ${landInCity}${landTZ ? ' ' + landTZ : ''}` : '';
 
     return `
     <div class="shared-card" onclick="openSharedDetail('${f.fbId}')">
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
-          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${driveLine}${startLine}${endLine}</div>
+          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${landLine}${driveLine}${startLine}${endLine}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button class="shared-remove" onclick="event.stopPropagation();openSharedEdit('${f.fbId}')" style="color:var(--muted);">✏️</button>
@@ -2050,7 +2062,7 @@ function renderShared() {
         <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
         <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${arriveby}${arriveTZ ? ' ' + arriveTZ : ''}</div></div>
         <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${leaveCity}${cityTZ ? ' ' + cityTZ : ''}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val r">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val y">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
       </div>
       ${notesLine}
       <div style="padding:8px 12px;border-top:1px solid var(--border);">
