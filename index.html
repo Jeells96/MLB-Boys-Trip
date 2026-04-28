@@ -1088,6 +1088,23 @@ text-align: right;
         </label>
       </div>
     </div>
+    <div class="fp-group">
+      <div class="fp-label">⏰ Buffer times (hours)</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">Arrive at city this many hours before game</div>
+          <input class="fp-input" id="settingPreGame" type="number" inputmode="decimal" min="0" max="12" step="0.5" placeholder="3">
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">Leave city this many hours after game start</div>
+          <input class="fp-input" id="settingPostGame" type="number" inputmode="decimal" min="0" max="24" step="0.5" placeholder="6">
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">Arrive at PDX this many hours before flight</div>
+          <input class="fp-input" id="settingPreFlight" type="number" inputmode="decimal" min="0" max="6" step="0.25" placeholder="1">
+        </div>
+      </div>
+    </div>
     <div class="fp-actions">
       <button class="fp-clear" onclick="closeSettings()">CANCEL</button>
       <button class="fp-apply" onclick="saveSettings()">SAVE</button>
@@ -1098,42 +1115,43 @@ text-align: right;
 <script>
 // ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
-  109: ['ARI', 'Phoenix',      'America/Phoenix',     'PHX', 2.5],
-  144: ['ATL', 'Atlanta',      'America/New_York',    'ATL', 5.5],
-  110: ['BAL', 'Baltimore',    'America/New_York',    'BWI', 5.5],
-  111: ['BOS', 'Boston',       'America/New_York',    'BOS', 6.0],
-  112: ['CHC', 'Chicago',      'America/Chicago',     'ORD', 4.5],
-  145: ['CWS', 'Chicago',      'America/Chicago',     'MDW', 4.5],
-  113: ['CIN', 'Cincinnati',   'America/New_York',    'CVG', 5.0],
-  114: ['CLE', 'Cleveland',    'America/New_York',    'CLE', 5.0],
-  115: ['COL', 'Denver',       'America/Denver',      'DEN', 2.5],
-  116: ['DET', 'Detroit',      'America/New_York',    'DTW', 5.0],
-  117: ['HOU', 'Houston',      'America/Chicago',     'IAH', 4.0],
-  118: ['KC',  'Kansas City',  'America/Chicago',     'MCI', 4.0],
-  108: ['LAA', 'Los Angeles',  'America/Los_Angeles', 'SNA', 2.0],
-  119: ['LAD', 'Los Angeles',  'America/Los_Angeles', 'LAX', 2.0],
-  158: ['MIL', 'Milwaukee',    'America/Chicago',     'MKE', 4.5],
-  142: ['MIN', 'Minneapolis',  'America/Chicago',     'MSP', 3.5],
-  121: ['NYM', 'New York',     'America/New_York',    'LGA', 5.5],
-  147: ['NYY', 'New York',     'America/New_York',    'EWR', 5.5],
-  133: ['OAK', 'Oakland',      'America/Los_Angeles', 'OAK', 1.5],
-  143: ['PHI', 'Philadelphia', 'America/New_York',    'PHL', 5.5],
-  134: ['PIT', 'Pittsburgh',   'America/New_York',    'PIT', 5.0],
-  135: ['SD',  'San Diego',    'America/Los_Angeles', 'SAN', 2.5],
-  137: ['SF',  'San Francisco','America/Los_Angeles', 'SFO', 1.5],
-  136: ['SEA', 'Seattle',      'America/Los_Angeles', 'SEA', 0.75],
-  138: ['STL', 'St. Louis',    'America/Chicago',     'STL', 4.5],
-  139: ['TB',  'Tampa Bay',    'America/New_York',    'TPA', 5.5],
-  140: ['TEX', 'Dallas',       'America/Chicago',     'DFW', 4.0],
-  141: ['TOR', 'Toronto',      'America/Toronto',     'YYZ', 5.5],
-  120: ['WSH', 'Washington',   'America/New_York',    'DCA', 5.5],
-  146: ['MIA', 'Miami',        'America/New_York',    'MIA', 6.0],
+  // [code, city, tz, airport, flightHours, driveMinutes (airport -> stadium)]
+  109: ['ARI', 'Phoenix',      'America/Phoenix',     'PHX', 2.5, 15],
+  144: ['ATL', 'Atlanta',      'America/New_York',    'ATL', 5.5, 25],
+  110: ['BAL', 'Baltimore',    'America/New_York',    'BWI', 5.5, 20],
+  111: ['BOS', 'Boston',       'America/New_York',    'BOS', 6.0, 15],
+  112: ['CHC', 'Chicago',      'America/Chicago',     'ORD', 4.5, 35],
+  145: ['CWS', 'Chicago',      'America/Chicago',     'MDW', 4.5, 20],
+  113: ['CIN', 'Cincinnati',   'America/New_York',    'CVG', 5.0, 20],
+  114: ['CLE', 'Cleveland',    'America/New_York',    'CLE', 5.0, 15],
+  115: ['COL', 'Denver',       'America/Denver',      'DEN', 2.5, 35],
+  116: ['DET', 'Detroit',      'America/New_York',    'DTW', 5.0, 30],
+  117: ['HOU', 'Houston',      'America/Chicago',     'IAH', 4.0, 30],
+  118: ['KC',  'Kansas City',  'America/Chicago',     'MCI', 4.0, 25],
+  108: ['LAA', 'Los Angeles',  'America/Los_Angeles', 'SNA', 2.0, 15],
+  119: ['LAD', 'Los Angeles',  'America/Los_Angeles', 'LAX', 2.0, 35],
+  158: ['MIL', 'Milwaukee',    'America/Chicago',     'MKE', 4.5, 15],
+  142: ['MIN', 'Minneapolis',  'America/Chicago',     'MSP', 3.5, 20],
+  121: ['NYM', 'New York',     'America/New_York',    'LGA', 5.5, 10],
+  147: ['NYY', 'New York',     'America/New_York',    'EWR', 5.5, 35],
+  133: ['OAK', 'Oakland',      'America/Los_Angeles', 'OAK', 1.5, 10],
+  143: ['PHI', 'Philadelphia', 'America/New_York',    'PHL', 5.5, 15],
+  134: ['PIT', 'Pittsburgh',   'America/New_York',    'PIT', 5.0, 25],
+  135: ['SD',  'San Diego',    'America/Los_Angeles', 'SAN', 2.5, 10],
+  137: ['SF',  'San Francisco','America/Los_Angeles', 'SFO', 1.5, 20],
+  136: ['SEA', 'Seattle',      'America/Los_Angeles', 'SEA', 0.75, 25],
+  138: ['STL', 'St. Louis',    'America/Chicago',     'STL', 4.5, 25],
+  139: ['TB',  'Tampa Bay',    'America/New_York',    'TPA', 5.5, 30],
+  140: ['TEX', 'Dallas',       'America/Chicago',     'DFW', 4.0, 25],
+  141: ['TOR', 'Toronto',      'America/Toronto',     'YYZ', 5.5, 35],
+  120: ['WSH', 'Washington',   'America/New_York',    'DCA', 5.5, 15],
+  146: ['MIA', 'Miami',        'America/New_York',    'MIA', 6.0, 20],
 };
 function getTeamInfo(id) {
-  return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0];
+  return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0, 30];
 }
 
-// Reverse lookup: team CODE (e.g. 'NYY') -> { homeTZ, flightHours }.
+// Reverse lookup: team CODE (e.g. 'NYY') -> { homeTZ, flightHours, driveMinutes }.
 // Built lazily on first call.
 let _teamByCode = null;
 function getTeamByCode(code) {
@@ -1141,7 +1159,7 @@ function getTeamByCode(code) {
     _teamByCode = {};
     for (const id in TEAM_INFO) {
       const row = TEAM_INFO[id];
-      _teamByCode[row[0]] = { homeTZ: row[2], flightHours: row[4] };
+      _teamByCode[row[0]] = { homeTZ: row[2], flightHours: row[4], driveMinutes: row[5] || 30 };
     }
   }
   return _teamByCode[code] || null;
@@ -1204,14 +1222,15 @@ function deriveGameStartUTCms(dateLabel, etTimeStr) {
 // computeTimes() can render in either tz mode. Returns the same object for
 // chaining; mutates in place.
 function backfillTzData(f) {
-  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) return f;
-  // Try home team code -> timezone + flightHours
-  if (f.homeTZ == null || f.flightHours == null) {
+  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null && f.driveMinutes != null) return f;
+  // Try home team code -> timezone + flightHours + driveMinutes
+  if (f.homeTZ == null || f.flightHours == null || f.driveMinutes == null) {
     const homeCode = getHomeCodeFromMatchup(f.matchup);
     const info = homeCode ? getTeamByCode(homeCode) : null;
     if (info) {
       if (f.homeTZ == null) f.homeTZ = info.homeTZ;
       if (f.flightHours == null) f.flightHours = info.flightHours;
+      if (f.driveMinutes == null) f.driveMinutes = info.driveMinutes;
     }
   }
   // Derive gameStartUTCms from arriveby (which equals gameStart - 3h, displayed in ET)
@@ -1238,10 +1257,38 @@ function setTzMode(mode) {
   try { localStorage.setItem('mlb_tz_mode', mode === 'local' ? 'local' : 'et'); } catch(e) {}
 }
 
+// Buffer settings (in hours). Defaults: 3h to arrive at the stadium before game,
+// 6h after game start to head back to the airport, 1h pre-flight cushion at PDX.
+const DEFAULT_PRE_GAME_BUFFER  = 3;   // hours: between landing in city + reaching stadium + game start
+const DEFAULT_POST_GAME_BUFFER = 6;   // hours: from game start until heading back to airport
+const DEFAULT_PRE_FLIGHT_PDX   = 1;   // hours: how early to leave PDX before flight departs
+
+function getPreGameBuffer() {
+  try {
+    const v = parseFloat(localStorage.getItem('mlb_pre_game_buffer'));
+    return (isFinite(v) && v >= 0) ? v : DEFAULT_PRE_GAME_BUFFER;
+  } catch(e) { return DEFAULT_PRE_GAME_BUFFER; }
+}
+function getPostGameBuffer() {
+  try {
+    const v = parseFloat(localStorage.getItem('mlb_post_game_buffer'));
+    return (isFinite(v) && v >= 0) ? v : DEFAULT_POST_GAME_BUFFER;
+  } catch(e) { return DEFAULT_POST_GAME_BUFFER; }
+}
+function getPreFlightPDX() {
+  try {
+    const v = parseFloat(localStorage.getItem('mlb_pre_flight_pdx'));
+    return (isFinite(v) && v >= 0) ? v : DEFAULT_PRE_FLIGHT_PDX;
+  } catch(e) { return DEFAULT_PRE_FLIGHT_PDX; }
+}
+
 function openSettings() {
   const mode = getTzMode();
   document.getElementById('tzModeEt').checked = (mode === 'et');
   document.getElementById('tzModeLocal').checked = (mode === 'local');
+  document.getElementById('settingPreGame').value = getPreGameBuffer();
+  document.getElementById('settingPostGame').value = getPostGameBuffer();
+  document.getElementById('settingPreFlight').value = getPreFlightPDX();
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings() {
@@ -1254,9 +1301,22 @@ function saveSettings() {
   const newMode = document.getElementById('tzModeLocal').checked ? 'local' : 'et';
   const oldMode = getTzMode();
   setTzMode(newMode);
+
+  const oldPre = getPreGameBuffer();
+  const oldPost = getPostGameBuffer();
+  const oldFlight = getPreFlightPDX();
+  const newPre = parseFloat(document.getElementById('settingPreGame').value);
+  const newPost = parseFloat(document.getElementById('settingPostGame').value);
+  const newFlight = parseFloat(document.getElementById('settingPreFlight').value);
+  try {
+    if (isFinite(newPre) && newPre >= 0) localStorage.setItem('mlb_pre_game_buffer', String(newPre));
+    if (isFinite(newPost) && newPost >= 0) localStorage.setItem('mlb_post_game_buffer', String(newPost));
+    if (isFinite(newFlight) && newFlight >= 0) localStorage.setItem('mlb_pre_flight_pdx', String(newFlight));
+  } catch(e) {}
+
   closeSettings();
-  if (newMode !== oldMode) {
-    // Re-render everything that shows times
+  const changed = (newMode !== oldMode) || (newPre !== oldPre) || (newPost !== oldPost) || (newFlight !== oldFlight);
+  if (changed) {
     try { reloadGames(); } catch(e) { console.error(e); }
     try { if (document.getElementById('tabFavs').classList.contains('active')) renderFavs(); } catch(e) {}
     try { if (document.getElementById('tabShared').classList.contains('active')) renderShared(); } catch(e) {}
@@ -1281,30 +1341,60 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr) {
+function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr, driveMinutesStr) {
   const gameStartUTCms = gameStartUTCmsStr ? parseInt(gameStartUTCmsStr) : null;
   const flightHours = parseFloat(flightHoursStr) || 0;
-  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode());
+  const driveMinutes = (driveMinutesStr === undefined || driveMinutesStr === '') ? 30 : parseFloat(driveMinutesStr);
+  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), driveMinutes);
   currentModalGame = {
     gameId, matchup, dateLabel, flightStr, expUrl,
     homeTZ: homeTZ || '',
     gameStartUTCms: gameStartUTCms || 0,
     flightHours: flightHours,
-    // Snapshots in current display mode (used by favorites which serializes this object)
+    driveMinutes: driveMinutes,
     leavePDX: t.leavePDX, arriveby: t.arriveby, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX,
     startDisplay: t.startDisplay
   };
   document.getElementById('mMatchup').textContent = matchup;
-  document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr}`;
+  document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr} · 🚗 ${driveMinutes}min`;
   document.getElementById('mLink').href = expUrl;
   document.getElementById('mTiming').innerHTML = `
     <div class="mt-item"><div class="mt-label">Leave PDX by</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive by</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}</div></div></div><div class="modal-timing" style="margin-top:6px"><div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive at stadium</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Game start</div><div class="mt-val y">${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Game end (~3h)</div><div class="mt-val g">${t.gameEndDisplay}${t.gameEndTZ ? ' ' + t.gameEndTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val r">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
   `;
   updateFavBtn(isFavorited(gameId));
   updateSharedBtn(isShared(gameId));
   document.getElementById('modalOverlay').classList.add('open');
+}
+
+// Open the detail modal from a cached favorite or shared item (which may be
+// missing tz data — backfill on the fly first).
+function openCardDetail(item) {
+  if (!item) return;
+  backfillTzData(item);
+  openModal(
+    item.matchup || '',
+    item.dateLabel || '',
+    item.flightStr || '',
+    item.expUrl || '',
+    item.gameId || '',
+    item.homeTZ || '',
+    String(item.gameStartUTCms || ''),
+    String(item.flightHours || ''),
+    String(item.driveMinutes != null ? item.driveMinutes : '')
+  );
+}
+function openFavDetail(gameId) {
+  const fav = getFavorites().find(function(f){ return f.gameId === String(gameId); });
+  if (fav) openCardDetail(fav);
+}
+function openSharedDetail(fbId) {
+  const item = sharedGamesCache.find(function(g){ return g.fbId === fbId; });
+  if (item) openCardDetail(item);
 }
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
@@ -1374,36 +1464,50 @@ function tzShort(iana) {
   return '';
 }
 
-// Compute display strings for all 5 times (game start + 4 trip legs) given:
+// Compute display strings for all times given:
 //   gameStartUTCms - the game start time in ms since epoch
 //   homeTZ         - IANA tz for the home stadium
 //   flightHours    - one-way flight duration from PDX
+//   driveMinutes   - drive time from airport to stadium (each way)
 //   mode           - 'et' (everything ET) or 'local' (each location's local tz)
-// Returns: { startDisplay, startTZ, leavePDX, leavePDXTZ, arriveby, arrivebyTZ,
-//            leaveCity, leaveCityTZ, arrivePDX, arrivePDXTZ }
-function computeTimes(gameStartUTCms, homeTZ, flightHours, mode) {
+// Returns object with all the time strings + tz labels including:
+//   gameEndDisplay (~3h after start), driveMinutes (number)
+function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
+  const drive = (typeof driveMinutes === 'number' && driveMinutes >= 0) ? driveMinutes : 30;
+  const preGame  = getPreGameBuffer();   // hrs before game to be at the stadium
+  const postGame = getPostGameBuffer();  // hrs after game start to leave the city
+  const preFlight = getPreFlightPDX();   // hrs before flight to leave PDX
+
   if (!gameStartUTCms || isNaN(gameStartUTCms)) {
     return {
       startDisplay: 'TBD', startTZ: '',
+      gameEndDisplay: '—', gameEndTZ: '',
       leavePDX: '—', leavePDXTZ: '',
       arriveby: '—', arrivebyTZ: '',
       leaveCity: '—', leaveCityTZ: '',
-      arrivePDX: '—', arrivePDXTZ: ''
+      arrivePDX: '—', arrivePDXTZ: '',
+      driveMinutes: drive,
+      gameLengthHours: 3
     };
   }
   const gameStart = new Date(gameStartUTCms);
-  const arrTimeUTC = new Date(gameStartUTCms - 3 * 3600000);
-  const leavePDXUTC = new Date(arrTimeUTC.getTime() - (flightHours + 1) * 3600000);
-  const leaveCityUTC = new Date(gameStartUTCms + 6 * 3600000);
+  const gameEndUTC = new Date(gameStartUTCms + 3 * 3600000); // typical MLB game ~3h
+  // "Arrive by" = game start - preGame buffer (this is when you should be AT the stadium)
+  const arriveStadiumUTC = new Date(gameStartUTCms - preGame * 3600000);
+  // Leave PDX so that: PDX dep -> flight -> land in city -> drive to stadium = arriveStadium
+  // PDX departure = arriveStadium - drive - flight, and we leave PDX preFlight hours before that
+  const flightDepartUTC = new Date(arriveStadiumUTC.getTime() - drive * 60000 - flightHours * 3600000);
+  const leavePDXUTC = new Date(flightDepartUTC.getTime() - preFlight * 3600000);
+  const leaveCityUTC = new Date(gameStartUTCms + postGame * 3600000);
   const arrivePDXUTC = new Date(leaveCityUTC.getTime() + flightHours * 3600000);
 
   let startTZ, leaveTZ, arriveTZ, cityTZ, returnTZ;
   if (mode === 'local') {
     startTZ  = homeTZ || 'America/New_York';
-    leaveTZ  = 'America/Los_Angeles'; // PDX
+    leaveTZ  = 'America/Los_Angeles';
     arriveTZ = homeTZ || 'America/New_York';
     cityTZ   = homeTZ || 'America/New_York';
-    returnTZ = 'America/Los_Angeles'; // PDX
+    returnTZ = 'America/Los_Angeles';
   } else {
     startTZ = leaveTZ = arriveTZ = cityTZ = returnTZ = 'America/New_York';
   }
@@ -1411,14 +1515,18 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode) {
   return {
     startDisplay: toTZ(gameStart, startTZ),
     startTZ: tzShort(startTZ),
+    gameEndDisplay: toTZ(gameEndUTC, startTZ),
+    gameEndTZ: tzShort(startTZ),
     leavePDX: toTZ(leavePDXUTC, leaveTZ),
     leavePDXTZ: tzShort(leaveTZ),
-    arriveby: toTZ(arrTimeUTC, arriveTZ),
+    arriveby: toTZ(arriveStadiumUTC, arriveTZ),
     arrivebyTZ: tzShort(arriveTZ),
     leaveCity: toTZ(leaveCityUTC, cityTZ),
     leaveCityTZ: tzShort(cityTZ),
     arrivePDX: toTZ(arrivePDXUTC, returnTZ),
-    arrivePDXTZ: tzShort(returnTZ)
+    arrivePDXTZ: tzShort(returnTZ),
+    driveMinutes: drive,
+    gameLengthHours: 3
   };
 }
 
@@ -1428,10 +1536,11 @@ function buildCard(dateStr, game) {
   if (!away || !home) return null;
 
   const [awayCode] = getTeamInfo(away.id);
-  const [homeCode, homeCity, homeTZ, homeIATA, flightHours] = getTeamInfo(home.id);
+  const [homeCode, homeCity, homeTZ, homeIATA, flightHours, driveMinutes] = getTeamInfo(home.id);
+  const drive = (typeof driveMinutes === 'number') ? driveMinutes : 30;
 
   const gameStartUTCms = game.gameDate ? new Date(game.gameDate).getTime() : null;
-  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode());
+  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), drive);
 
   const flightStr = flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`;
   const expUrl    = expediaURL(homeIATA, dateStr);
@@ -1443,10 +1552,10 @@ function buildCard(dateStr, game) {
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
   // Inline card (small) — pass extra fields to openModal so the modal/share/fav
-  // path has homeTZ + gameStartUTCms for re-rendering in either tz mode.
+  // path has homeTZ + gameStartUTCms + driveMinutes for re-rendering in either tz mode.
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}','${drive}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div>
@@ -1470,7 +1579,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, homeTZ, gameStartUTCms, flightHours, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, savedPrice, startDisplay: t.startDisplay, html };
+  return { homeCity, homeCode, homeTZ, gameStartUTCms, flightHours, driveMinutes: drive, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, savedPrice, startDisplay: t.startDisplay, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -1717,29 +1826,30 @@ function renderFavs() {
   el.innerHTML = favs.map(f => {
     const inputId = 'fav-price-' + f.gameId;
     const saved = (() => { try { return localStorage.getItem('price-' + f.gameId) || ''; } catch(e){ return ''; } })();
-    // If we have the raw timezone data, recompute times in the current mode.
-    // Otherwise fall back to whatever was saved (older favorites stored ET strings).
-    let leavePDX, arriveby, leaveCity, arrivePDX;
-    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET';
     backfillTzData(f);
+    let leavePDX, arriveby, leaveCity, arrivePDX, gameEnd = '';
+    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', endTZ = 'ET';
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
-      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode);
+      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
-      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ;
+      gameEnd = t.gameEndDisplay;
+      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; endTZ = t.gameEndTZ;
     } else {
       leavePDX = f.leavePDX || '—';
       arriveby = f.arriveby || '—';
       leaveCity = f.leaveCity || '—';
       arrivePDX = f.arrivePDX || '—';
     }
+    const driveStr = (f.driveMinutes != null) ? (' · 🚗 ' + f.driveMinutes + 'min') : '';
+    const endStr = gameEnd ? (' · 🏁 ' + gameEnd + (endTZ ? ' ' + endTZ : '')) : '';
     return `
-    <div class="fav-card" id="fav-card-${f.gameId}">
+    <div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavDetail('${f.gameId}')">
       <div class="fav-head">
         <div>
           <div class="fav-matchup">${f.matchup}</div>
-          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}</div>
+          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}${driveStr}${endStr}</div>
         </div>
-        <button class="fav-remove" onclick="removeFav('${f.gameId}')">✕</button>
+        <button class="fav-remove" onclick="event.stopPropagation();removeFav('${f.gameId}')">✕</button>
       </div>
       <div class="fav-timing">
         <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
@@ -1748,12 +1858,13 @@ function renderFavs() {
         <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val r">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
       </div>
       <div class="fav-footer">
-        <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener">✈ FLIGHTS ↗</a>
-        <button class="fav-share-btn" id="fav-share-${f.gameId}" onclick="shareFavGame('${f.gameId}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
+        <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ FLIGHTS ↗</a>
+        <button class="fav-share-btn" id="fav-share-${f.gameId}" onclick="event.stopPropagation();shareFavGame('${f.gameId}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
         <div class="fav-price-wrap">
           <span class="fav-price-label">$</span>
           <input class="fav-price-input" type="text" inputmode="decimal" placeholder="price"
             value="${saved}"
+            onclick="event.stopPropagation()"
             onchange="savePrice('price-${f.gameId}', this.value)">
         </div>
       </div>
@@ -1904,15 +2015,14 @@ function renderShared() {
     const notesLine = f.notes ? `<div class="shared-meta" style="padding:6px 12px;border-top:1px solid var(--border);background:#15131f;">📝 ${f.notes}</div>` : '';
     const priceBadge = f.price ? `<span style="color:var(--accent);font-weight:700;margin-right:8px;">$${f.price}</span>` : '';
 
-    // Recompute times from raw data if available (newer shares); otherwise use stored ET strings.
-    let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay;
-    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET';
     backfillTzData(f);
+    let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay, gameEnd = '';
+    let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET', endTZ = 'ET';
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
-      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode);
+      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
-      startDisplay = t.startDisplay;
-      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; startTZ = t.startTZ;
+      startDisplay = t.startDisplay; gameEnd = t.gameEndDisplay;
+      leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; startTZ = t.startTZ; endTZ = t.gameEndTZ;
     } else {
       leavePDX = f.leavePDX || '—';
       arriveby = f.arriveby || '—';
@@ -1921,15 +2031,20 @@ function renderShared() {
       startDisplay = f.startDisplay || '';
     }
     const startLine = startDisplay ? ` · 🕒 ${startDisplay}${startTZ ? ' ' + startTZ : ''}` : '';
+    const endLine = gameEnd ? ` · 🏁 ${gameEnd}${endTZ ? ' ' + endTZ : ''}` : '';
+    const driveLine = (f.driveMinutes != null) ? ` · 🚗 ${f.driveMinutes}min` : '';
 
     return `
-    <div class="shared-card" onclick="openSharedEdit('${f.fbId}')">
+    <div class="shared-card" onclick="openSharedDetail('${f.fbId}')">
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
-          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${startLine}</div>
+          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${driveLine}${startLine}${endLine}</div>
         </div>
-        <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="shared-remove" onclick="event.stopPropagation();openSharedEdit('${f.fbId}')" style="color:var(--muted);">✏️</button>
+          <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
+        </div>
       </div>
       <div class="shared-timing">
         <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
@@ -2017,6 +2132,7 @@ async function submitSharePrompt() {
       homeTZ: String(game.homeTZ || ''),
       gameStartUTCms: Number(game.gameStartUTCms || 0),
       flightHours: Number(game.flightHours || 0),
+      driveMinutes: Number(game.driveMinutes != null ? game.driveMinutes : 30),
       price: String(price || ''),
       sharedBy: sharedBy,
       notes: notes,
