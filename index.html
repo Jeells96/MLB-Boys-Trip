@@ -1115,7 +1115,7 @@ text-align: right;
 <script>
 // ─── TEAM DATA ─────────────────────────────────────────────────────────────────
 const TEAM_INFO = {
-  // [code, city, tz, airport, flightHours, driveMinutes (airport -> stadium)]
+  // [code, city, tz, airport, flightHours, driveMinutes (airport -> stadium), directDriveHours (drive from PDX, optional)]
   109: ['ARI', 'Phoenix',      'America/Phoenix',     'PHX', 2.5, 15],
   144: ['ATL', 'Atlanta',      'America/New_York',    'ATL', 5.5, 25],
   110: ['BAL', 'Baltimore',    'America/New_York',    'BWI', 5.5, 20],
@@ -1139,7 +1139,7 @@ const TEAM_INFO = {
   134: ['PIT', 'Pittsburgh',   'America/New_York',    'PIT', 5.0, 25],
   135: ['SD',  'San Diego',    'America/Los_Angeles', 'SAN', 2.5, 10],
   137: ['SF',  'San Francisco','America/Los_Angeles', 'SFO', 1.5, 20],
-  136: ['SEA', 'Seattle',      'America/Los_Angeles', 'SEA', 0.75, 25],
+  136: ['SEA', 'Seattle',      'America/Los_Angeles', 'SEA', 0,    0,  3],   // drive 3h from PDX
   138: ['STL', 'St. Louis',    'America/Chicago',     'STL', 4.5, 25],
   139: ['TB',  'Tampa Bay',    'America/New_York',    'TPA', 5.5, 30],
   140: ['TEX', 'Dallas',       'America/Chicago',     'DFW', 4.0, 25],
@@ -1151,7 +1151,7 @@ function getTeamInfo(id) {
   return TEAM_INFO[id] || ['???', 'Unknown', 'America/Los_Angeles', 'LAX', 5.0, 30];
 }
 
-// Reverse lookup: team CODE (e.g. 'NYY') -> { homeTZ, flightHours, driveMinutes }.
+// Reverse lookup: team CODE (e.g. 'NYY') -> { homeTZ, flightHours, driveMinutes, directDriveHours }.
 // Built lazily on first call.
 let _teamByCode = null;
 function getTeamByCode(code) {
@@ -1159,7 +1159,12 @@ function getTeamByCode(code) {
     _teamByCode = {};
     for (const id in TEAM_INFO) {
       const row = TEAM_INFO[id];
-      _teamByCode[row[0]] = { homeTZ: row[2], flightHours: row[4], driveMinutes: row[5] || 30 };
+      _teamByCode[row[0]] = {
+        homeTZ: row[2],
+        flightHours: row[4],
+        driveMinutes: row[5] || 30,
+        directDriveHours: row[6] || 0
+      };
     }
   }
   return _teamByCode[code] || null;
@@ -1222,15 +1227,16 @@ function deriveGameStartUTCms(dateLabel, etTimeStr) {
 // computeTimes() can render in either tz mode. Returns the same object for
 // chaining; mutates in place.
 function backfillTzData(f) {
-  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null && f.driveMinutes != null) return f;
-  // Try home team code -> timezone + flightHours + driveMinutes
-  if (f.homeTZ == null || f.flightHours == null || f.driveMinutes == null) {
+  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null && f.driveMinutes != null && f.directDriveHours != null) return f;
+  // Try home team code -> timezone + flightHours + driveMinutes + directDriveHours
+  if (f.homeTZ == null || f.flightHours == null || f.driveMinutes == null || f.directDriveHours == null) {
     const homeCode = getHomeCodeFromMatchup(f.matchup);
     const info = homeCode ? getTeamByCode(homeCode) : null;
     if (info) {
       if (f.homeTZ == null) f.homeTZ = info.homeTZ;
       if (f.flightHours == null) f.flightHours = info.flightHours;
       if (f.driveMinutes == null) f.driveMinutes = info.driveMinutes;
+      if (f.directDriveHours == null) f.directDriveHours = info.directDriveHours;
     }
   }
   // Derive gameStartUTCms from arriveby (which equals gameStart - 3h, displayed in ET)
@@ -1330,31 +1336,42 @@ function expediaURL(iata, dateStr) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr, driveMinutesStr) {
+function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr, driveMinutesStr, directDriveHoursStr) {
   const gameStartUTCms = gameStartUTCmsStr ? parseInt(gameStartUTCmsStr) : null;
   const flightHours = parseFloat(flightHoursStr) || 0;
   const driveMinutes = (driveMinutesStr === undefined || driveMinutesStr === '') ? 30 : parseFloat(driveMinutesStr);
-  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), driveMinutes);
+  const directDriveHours = (directDriveHoursStr === undefined || directDriveHoursStr === '' || directDriveHoursStr === '0') ? 0 : parseFloat(directDriveHoursStr);
+  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), driveMinutes, directDriveHours);
   currentModalGame = {
     gameId, matchup, dateLabel, flightStr, expUrl,
     homeTZ: homeTZ || '',
     gameStartUTCms: gameStartUTCms || 0,
     flightHours: flightHours,
     driveMinutes: driveMinutes,
+    directDriveHours: directDriveHours,
+    isDriving: directDriveHours > 0,
     leavePDX: t.leavePDX, arriveby: t.arriveby, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX,
     startDisplay: t.startDisplay
   };
   document.getElementById('mMatchup').textContent = matchup;
-  document.getElementById('mSub').textContent = `${dateLabel} · ✈ PDX ${flightStr} · 🚗 ${driveMinutes}min`;
+  // Subline: for driving trips, show drive hours instead of flight + airport drive
+  const subline = t.isDriving
+    ? `${dateLabel} · 🚗 ${directDriveHours}h drive from PDX`
+    : `${dateLabel} · ✈ PDX ${flightStr} · 🚗 ${driveMinutes}min`;
+  document.getElementById('mSub').textContent = subline;
   document.getElementById('mLink').href = expUrl;
+  // Labels also change for driving trips
+  const leaveLabel = t.isDriving ? 'Leave PDX (drive)' : 'Flight departs PDX';
+  const landLabel  = t.isDriving ? 'Arrive in city' : 'Land in city';
+  const returnLabel = t.isDriving ? 'Arrive home (PDX)' : 'Arrive PDX';
   document.getElementById('mTiming').innerHTML = `
-    <div class="mt-item"><div class="mt-label">Flight departs PDX</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Land in city</div><div class="mt-val b">${t.landInCity}${t.landInCityTZ ? ' ' + t.landInCityTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">${leaveLabel}</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">${landLabel}</div><div class="mt-val b">${t.landInCity}${t.landInCityTZ ? ' ' + t.landInCityTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Arrive at stadium</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Game start</div><div class="mt-val g">${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Game end (~3h)</div><div class="mt-val g">${t.gameEndDisplay}${t.gameEndTZ ? ' ' + t.gameEndTZ : ''}</div></div>
     <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive PDX</div><div class="mt-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">${returnLabel}</div><div class="mt-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
   `;
   updateFavBtn(isFavorited(gameId));
   updateSharedBtn(isShared(gameId));
@@ -1375,7 +1392,8 @@ function openCardDetail(item) {
     item.homeTZ || '',
     String(item.gameStartUTCms || ''),
     String(item.flightHours || ''),
-    String(item.driveMinutes != null ? item.driveMinutes : '')
+    String(item.driveMinutes != null ? item.driveMinutes : ''),
+    String(item.directDriveHours != null ? item.directDriveHours : '0')
   );
 }
 function openFavDetail(gameId) {
@@ -1462,8 +1480,10 @@ function tzShort(iana) {
 //   mode           - 'et' (everything ET) or 'local' (each location's local tz)
 // Returns object with all the time strings + tz labels including:
 //   gameEndDisplay (~3h after start), driveMinutes (number)
-function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
+function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes, directDriveHours) {
   const drive = (typeof driveMinutes === 'number' && driveMinutes >= 0) ? driveMinutes : 30;
+  const directDrive = (typeof directDriveHours === 'number' && directDriveHours > 0) ? directDriveHours : 0;
+  const isDriving = directDrive > 0; // when set, no flight is taken
   const preGame  = getPreGameBuffer();   // hrs before game to be at the stadium
   const postGame = getPostGameBuffer();  // hrs after game start to leave the city
 
@@ -1477,19 +1497,29 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
       leaveCity: '—', leaveCityTZ: '',
       arrivePDX: '—', arrivePDXTZ: '',
       driveMinutes: drive,
+      directDriveHours: directDrive,
+      isDriving: isDriving,
       gameLengthHours: 3
     };
   }
   const gameStart = new Date(gameStartUTCms);
-  const gameEndUTC = new Date(gameStartUTCms + 3 * 3600000); // typical MLB game ~3h
-  // "Arrive by" = game start - preGame buffer (this is when you should be AT the stadium)
+  const gameEndUTC = new Date(gameStartUTCms + 3 * 3600000);
   const arriveStadiumUTC = new Date(gameStartUTCms - preGame * 3600000);
-  // Land in city = arriveStadium - drive
-  const landInCityUTC = new Date(arriveStadiumUTC.getTime() - drive * 60000);
-  // Leave PDX = flight depart = land in city - flight hours
-  const leavePDXUTC = new Date(landInCityUTC.getTime() - flightHours * 3600000);
-  const leaveCityUTC = new Date(gameStartUTCms + postGame * 3600000);
-  const arrivePDXUTC = new Date(leaveCityUTC.getTime() + flightHours * 3600000);
+
+  let leavePDXUTC, landInCityUTC, leaveCityUTC, arrivePDXUTC;
+  if (isDriving) {
+    // Drive from PDX directly to stadium. No flight, no airport drive.
+    leavePDXUTC = new Date(arriveStadiumUTC.getTime() - directDrive * 3600000);
+    landInCityUTC = arriveStadiumUTC; // arrive at the city = arrive at the stadium when driving
+    leaveCityUTC = new Date(gameStartUTCms + postGame * 3600000);
+    arrivePDXUTC = new Date(leaveCityUTC.getTime() + directDrive * 3600000);
+  } else {
+    // Standard flight + airport drive flow
+    landInCityUTC = new Date(arriveStadiumUTC.getTime() - drive * 60000);
+    leavePDXUTC = new Date(landInCityUTC.getTime() - flightHours * 3600000);
+    leaveCityUTC = new Date(gameStartUTCms + postGame * 3600000);
+    arrivePDXUTC = new Date(leaveCityUTC.getTime() + flightHours * 3600000);
+  }
 
   let startTZ, leaveTZ, arriveTZ, cityTZ, returnTZ;
   if (mode === 'local') {
@@ -1518,6 +1548,8 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes) {
     arrivePDX: toTZ(arrivePDXUTC, returnTZ),
     arrivePDXTZ: tzShort(returnTZ),
     driveMinutes: drive,
+    directDriveHours: directDrive,
+    isDriving: isDriving,
     gameLengthHours: 3
   };
 }
@@ -1528,13 +1560,21 @@ function buildCard(dateStr, game) {
   if (!away || !home) return null;
 
   const [awayCode] = getTeamInfo(away.id);
-  const [homeCode, homeCity, homeTZ, homeIATA, flightHours, driveMinutes] = getTeamInfo(home.id);
+  const [homeCode, homeCity, homeTZ, homeIATA, flightHours, driveMinutes, directDriveHours] = getTeamInfo(home.id);
   const drive = (typeof driveMinutes === 'number') ? driveMinutes : 30;
+  const directDrive = (typeof directDriveHours === 'number' && directDriveHours > 0) ? directDriveHours : 0;
+  const isDriving = directDrive > 0;
 
   const gameStartUTCms = game.gameDate ? new Date(game.gameDate).getTime() : null;
-  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), drive);
+  const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), drive, directDrive);
 
-  const flightStr = flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`;
+  // Trip badge text
+  const tripStr = isDriving
+    ? `~${directDrive}h drive`
+    : (flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`);
+  const tripIcon = isDriving ? '🚗' : '✈';
+  const flightBadge = `${tripIcon}${tripStr}`;
+  const flightStr = isDriving ? `🚗 ${directDrive}h drive` : (flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`);
   const expUrl    = expediaURL(homeIATA, dateStr);
   const matchup   = `${awayCode}@${homeCode}`;
   const matchupFull = `${awayCode} @ ${homeCode}`;
@@ -1543,19 +1583,24 @@ function buildCard(dateStr, game) {
   let savedPrice  = '';
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
+  // For driving trips, replace Expedia button with a Maps shortcut (or hide).
+  // Keep the same yellow chip style; clicking opens Google Maps to the stadium city.
+  const expediaBtnHtml = isDriving
+    ? `<a class="expedia-btn" href="https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(homeCity)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗</a>`
+    : `<a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">$$</a>`;
+
   // Inline card (small) — pass extra fields to openModal so the modal/share/fav
-  // path has homeTZ + gameStartUTCms + driveMinutes for re-rendering in either tz mode.
+  // path has homeTZ + gameStartUTCms + driveMinutes + directDriveHours for re-rendering.
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}','${drive}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}','${drive}','${directDrive}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div>
       </div>
       <div class="card-flight">
-        <span class="flight-badge">✈${flightStr}</span>
-        <a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener"
-          onclick="event.stopPropagation()">$$</a>
+        <span class="flight-badge">${flightBadge}</span>
+        ${expediaBtnHtml}
       </div>
       <div class="card-timing">
         <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</span></div>
@@ -1571,7 +1616,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, homeTZ, gameStartUTCms, flightHours, driveMinutes: drive, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, savedPrice, startDisplay: t.startDisplay, html };
+  return { homeCity, homeCode, homeTZ, gameStartUTCms, flightHours, driveMinutes: drive, directDriveHours: directDrive, isDriving: isDriving, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, savedPrice, startDisplay: t.startDisplay, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -1618,18 +1663,24 @@ function render() {
       return price <= activeFilters.maxPrice;
     });
   }
-  if (activeFilters.month) {
-    const m = parseInt(activeFilters.month);
+  if (activeFilters.months && activeFilters.months.size > 0) {
     filtered = filtered.filter(g => {
       const [y, mo] = g.date.split('-').map(Number);
-      return mo === m;
+      return activeFilters.months.has(mo);
     });
   }
   if (activeFilters.startFrom || activeFilters.startTo) {
     const fromMin = timeToMinutes(activeFilters.startFrom);
     const toMin   = timeToMinutes(activeFilters.startTo);
     filtered = filtered.filter(g => {
-      const t = displayTimeToMinutes(g.startDisplay);
+      // Always compare against the ET version of the game start, regardless of display mode.
+      let etStr = '';
+      if (g.gameStartUTCms) {
+        etStr = toTZ(new Date(g.gameStartUTCms), 'America/New_York');
+      } else {
+        etStr = g.startDisplay;
+      }
+      const t = displayTimeToMinutes(etStr);
       if (t === null) return true;
       if (fromMin !== null && t < fromMin) return false;
       if (toMin   !== null && t > toMin)   return false;
@@ -1699,6 +1750,25 @@ function buildFilterChips(codes) {
 
 // ─── FILTER PANEL LOGIC ───────────────────────────────────────────────────────
 let activeFilters = {};
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function buildMonthChips() {
+  const wrap = document.getElementById('fpMonthChips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  // Months 3..10 (March through October — MLB regular season)
+  const selected = activeFilters.months instanceof Set ? activeFilters.months : new Set();
+  for (let m = 3; m <= 10; m++) {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (selected.has(m) ? ' active' : '');
+    chip.textContent = MONTH_NAMES[m - 1];
+    chip.dataset.month = String(m);
+    chip.addEventListener('click', function() {
+      chip.classList.toggle('active');
+    });
+    wrap.appendChild(chip);
+  }
+}
 
 function openFilterPanel() {
   // Restore saved values
@@ -1708,9 +1778,9 @@ function openFilterPanel() {
   document.getElementById('fpReturnFrom').value   = activeFilters.returnFrom || '';
   document.getElementById('fpReturnTo').value     = activeFilters.returnTo   || '';
   document.getElementById('fpMaxPrice').value     = activeFilters.maxPrice   || '';
-  document.getElementById('fpMonth').value         = activeFilters.month      || '';
   document.getElementById('fpStartFrom').value     = activeFilters.startFrom  || '';
   document.getElementById('fpStartTo').value       = activeFilters.startTo    || '';
+  buildMonthChips();
   document.getElementById('fpOverlay').classList.add('open');
 }
 function fpOutsideClick(e) {
@@ -1719,14 +1789,23 @@ function fpOutsideClick(e) {
 }
 function clearFilters() {
   activeFilters = {};
-  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice','fpMonth','fpStartFrom','fpStartTo'].forEach(id => {
-    document.getElementById(id).value = '';
+  ['fpMaxFlight','fpLeavePDXFrom','fpLeavePDXTo','fpReturnFrom','fpReturnTo','fpMaxPrice','fpStartFrom','fpStartTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
+  buildMonthChips();
   updateFilterBtn();
   document.getElementById('fpOverlay').classList.remove('open');
   render();
 }
 function applyFilters() {
+  // Read selected months from chips
+  const monthChips = document.querySelectorAll('#fpMonthChips .chip.active');
+  const months = new Set();
+  monthChips.forEach(function(c){
+    const m = parseInt(c.dataset.month);
+    if (!isNaN(m)) months.add(m);
+  });
   activeFilters = {
     maxFlight:    parseFloat(document.getElementById('fpMaxFlight').value)   || null,
     leavePDXFrom: document.getElementById('fpLeavePDXFrom').value || null,
@@ -1734,7 +1813,7 @@ function applyFilters() {
     returnFrom:   document.getElementById('fpReturnFrom').value   || null,
     returnTo:     document.getElementById('fpReturnTo').value     || null,
     maxPrice:     parseFloat(document.getElementById('fpMaxPrice').value)    || null,
-    month:        document.getElementById('fpMonth').value                     || null,
+    months:       months.size > 0 ? months : null,
     startFrom:    document.getElementById('fpStartFrom').value                 || null,
     startTo:      document.getElementById('fpStartTo').value                   || null,
   };
@@ -1822,7 +1901,7 @@ function renderFavs() {
     let leavePDX, arriveby, leaveCity, arrivePDX, gameEnd = '', landInCity = '';
     let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', endTZ = 'ET', landTZ = 'ET';
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
-      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes);
+      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes, f.directDriveHours);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
       gameEnd = t.gameEndDisplay; landInCity = t.landInCity;
       leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; endTZ = t.gameEndTZ; landTZ = t.landInCityTZ;
@@ -1832,15 +1911,19 @@ function renderFavs() {
       leaveCity = f.leaveCity || '—';
       arrivePDX = f.arrivePDX || '—';
     }
-    const driveStr = (f.driveMinutes != null) ? (' · 🚗 ' + f.driveMinutes + 'min') : '';
+    const isDriving = (f.directDriveHours && f.directDriveHours > 0);
+    const driveStr = isDriving
+      ? ''
+      : ((f.driveMinutes != null) ? (' · 🚗 ' + f.driveMinutes + 'min') : '');
     const endStr = gameEnd ? (' · 🏁 ' + gameEnd + (endTZ ? ' ' + endTZ : '')) : '';
-    const landStr = landInCity ? (' · 🛬 ' + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
+    const landStr = landInCity ? ((isDriving ? ' · 🅿️ ' : ' · 🛬 ') + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
+    const tripLabel = isDriving ? `🚗 ${f.directDriveHours}h drive` : `✈ PDX ${f.flightStr}`;
     return `
     <div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavDetail('${f.gameId}')">
       <div class="fav-head">
         <div>
           <div class="fav-matchup">${f.matchup}</div>
-          <div class="fav-date">${f.dateLabel} · ✈ PDX ${f.flightStr}${landStr}${driveStr}${endStr}</div>
+          <div class="fav-date">${f.dateLabel} · ${tripLabel}${landStr}${driveStr}${endStr}</div>
         </div>
         <button class="fav-remove" onclick="event.stopPropagation();removeFav('${f.gameId}')">✕</button>
       </div>
@@ -2012,7 +2095,7 @@ function renderShared() {
     let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay, gameEnd = '', landInCity = '';
     let leaveTZ = 'ET', arriveTZ = 'ET', cityTZ = 'ET', returnTZ = 'ET', startTZ = 'ET', endTZ = 'ET', landTZ = 'ET';
     if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null) {
-      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes);
+      const t = computeTimes(f.gameStartUTCms, f.homeTZ, f.flightHours, mode, f.driveMinutes, f.directDriveHours);
       leavePDX = t.leavePDX; arriveby = t.arriveby; leaveCity = t.leaveCity; arrivePDX = t.arrivePDX;
       startDisplay = t.startDisplay; gameEnd = t.gameEndDisplay; landInCity = t.landInCity;
       leaveTZ = t.leavePDXTZ; arriveTZ = t.arrivebyTZ; cityTZ = t.leaveCityTZ; returnTZ = t.arrivePDXTZ; startTZ = t.startTZ; endTZ = t.gameEndTZ; landTZ = t.landInCityTZ;
@@ -2023,17 +2106,19 @@ function renderShared() {
       arrivePDX = f.arrivePDX || '—';
       startDisplay = f.startDisplay || '';
     }
+    const isDriving = (f.directDriveHours && f.directDriveHours > 0);
     const startLine = startDisplay ? ` · 🕒 ${startDisplay}${startTZ ? ' ' + startTZ : ''}` : '';
     const endLine = gameEnd ? ` · 🏁 ${gameEnd}${endTZ ? ' ' + endTZ : ''}` : '';
-    const driveLine = (f.driveMinutes != null) ? ` · 🚗 ${f.driveMinutes}min` : '';
-    const landLine = landInCity ? ` · 🛬 ${landInCity}${landTZ ? ' ' + landTZ : ''}` : '';
+    const driveLine = isDriving ? '' : ((f.driveMinutes != null) ? ` · 🚗 ${f.driveMinutes}min` : '');
+    const landLine = landInCity ? ((isDriving ? ' · 🅿️ ' : ' · 🛬 ') + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
+    const tripLabel = isDriving ? `🚗 ${f.directDriveHours}h drive` : `✈ PDX ${f.flightStr}`;
 
     return `
     <div class="shared-card" onclick="openSharedDetail('${f.fbId}')">
       <div class="shared-head">
         <div>
           <div class="shared-matchup">${f.matchup}</div>
-          <div class="shared-meta">${f.dateLabel} · ✈ PDX ${f.flightStr}${landLine}${driveLine}${startLine}${endLine}</div>
+          <div class="shared-meta">${f.dateLabel} · ${tripLabel}${landLine}${driveLine}${startLine}${endLine}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button class="shared-remove" onclick="event.stopPropagation();openSharedEdit('${f.fbId}')" style="color:var(--muted);">✏️</button>
@@ -2127,6 +2212,7 @@ async function submitSharePrompt() {
       gameStartUTCms: Number(game.gameStartUTCms || 0),
       flightHours: Number(game.flightHours || 0),
       driveMinutes: Number(game.driveMinutes != null ? game.driveMinutes : 30),
+      directDriveHours: Number(game.directDriveHours || 0),
       price: String(price || ''),
       sharedBy: sharedBy,
       notes: notes,
@@ -2388,24 +2474,12 @@ init();
 </div>
 
 <div class="fp-group">
-  <div class="fp-label">📅 Month</div>
-  <div class="fp-row">
-    <select class="fp-input" id="fpMonth">
-      <option value="">Any month</option>
-      <option value="3">March</option>
-      <option value="4">April</option>
-      <option value="5">May</option>
-      <option value="6">June</option>
-      <option value="7">July</option>
-      <option value="8">August</option>
-      <option value="9">September</option>
-      <option value="10">October</option>
-    </select>
-  </div>
+  <div class="fp-label">📅 Months (tap to toggle)</div>
+  <div id="fpMonthChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
 </div>
 
 <div class="fp-group">
-  <div class="fp-label">⏰ Game Start Time (local) — Between</div>
+  <div class="fp-label">⏰ Game Start Time (ET) — Between</div>
   <div class="fp-row">
     <input class="fp-input" id="fpStartFrom" type="time" placeholder="12:00">
     <span class="fp-sep">–</span>
