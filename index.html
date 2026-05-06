@@ -1632,7 +1632,13 @@ function render() {
 
   // Apply advanced filters
   if (activeFilters.maxFlight) {
-    filtered = filtered.filter(g => (g.flightHours || 99) <= activeFilters.maxFlight);
+    filtered = filtered.filter(g => {
+      // Driving teams (no flight) always pass the max-flight filter
+      if (g.isDriving) return true;
+      const fh = g.flightHours;
+      if (fh === undefined || fh === null) return true;
+      return fh <= activeFilters.maxFlight;
+    });
   }
   if (activeFilters.leavePDXFrom || activeFilters.leavePDXTo) {
     const fromMin = timeToMinutes(activeFilters.leavePDXFrom);
@@ -2389,7 +2395,7 @@ async function reloadGames() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, isDriving: result.isDriving, gameStartUTCms: result.gameStartUTCms, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
     }
     buildFilterChips(codes);
     render();
@@ -2417,7 +2423,7 @@ async function init() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, isDriving: result.isDriving, gameStartUTCms: result.gameStartUTCms, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
     }
 
     buildFilterChips(codes);
