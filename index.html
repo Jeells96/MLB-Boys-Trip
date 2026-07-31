@@ -1174,6 +1174,17 @@ main, #favsView, #sharedView { max-width: 1180px; margin-inline: auto; }
 
 .price-entry .p-input { font-size: 16px; }
 .price-entry .p-input::placeholder { font-size: 10.5px; }
+
+/* Day chips overflowed the viewport at <=330px, pushing SAT -- the default --
+   off-screen and scrolling the whole page sideways. */
+.day-bar { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.day-bar::-webkit-scrollbar { display: none; }
+.day-chip { flex-shrink: 0; }
+/* Sort row needs the same scroll affordance as the team carousel. */
+.sort-wrap { mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+             -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+/* The primary modal button broke into five line boxes on a narrow phone. */
+.fl-primary { flex-wrap: wrap; font-size: clamp(15px, 4.2vw, 18px); letter-spacing: 1px; }
 </style>
 
 <script type="module">
@@ -1857,7 +1868,9 @@ function flightSearchForItem(item) {
   if (item.directDriveHours > 0) return null;              // driving trips have no flight
   const code = item.homeCode || getHomeCodeFromMatchup(item.matchup);
   const info = code ? getTeamByCode(code) : null;
-  const iata = item.destIata || (info && info.iata) || '';
+  // destIata can come from a shared doc, so never let arbitrary text into a URL.
+  const raw = item.destIata || (info && info.iata) || '';
+  const iata = /^[A-Za-z]{3}$/.test(raw) ? raw.toUpperCase() : '';
   if (!iata) return null;
   if (!item.gameStartUTCms || item.homeTZ == null || item.flightHours == null) return null;
   const t = computeTimes(item.gameStartUTCms, item.homeTZ, item.flightHours, getTzMode(),
@@ -1873,7 +1886,7 @@ function flightSearchForItem(item) {
 function renderFlightsPanel(el, item, homeCity) {
   if (!el) return;
   if (item && item.directDriveHours > 0) {
-    const dest = encodeURIComponent(homeCity || '');
+    const dest = encodeURIComponent(String(homeCity || ''));
     el.innerHTML = `
       <a class="fl-primary" href="https://www.google.com/maps/dir/Portland+OR/${dest}" target="_blank" rel="noopener">🚗 DRIVING DIRECTIONS ↗</a>
       <div class="fl-foot">No flight needed — this one's a drive from Portland.</div>`;
@@ -1881,7 +1894,7 @@ function renderFlightsPanel(el, item, homeCity) {
   }
   const fs = flightSearchForItem(item);
   if (!fs) {
-    const fallback = item && item.expUrl;
+    const fallback = safeUrl(item && item.expUrl);
     el.innerHTML = fallback
       ? `<a class="fl-primary" href="${fallback}" target="_blank" rel="noopener">✈ SEARCH FLIGHTS ↗</a>
          <div class="fl-foot">Saved before flight times were tracked — this link isn't time-filtered.</div>`
@@ -1896,19 +1909,19 @@ function renderFlightsPanel(el, item, homeCity) {
   el.innerHTML = `
     <div class="fl-window">
       <div class="fl-window-title">Flight window we need</div>
-      <div class="fl-window-row"><span>Out ${formatShortDate(fs.outDate)} · land by</span><b>${fs.landBy}</b></div>
-      <div class="fl-window-row"><span>Back ${formatShortDate(fs.retDate)} · depart after</span><b>${fs.departAfter}</b></div>
+      <div class="fl-window-row"><span>Out ${formatShortDate(fs.outDate)} · land by</span><b>${esc(fs.landBy)}</b></div>
+      <div class="fl-window-row"><span>Back ${formatShortDate(fs.retDate)} · depart after</span><b>${esc(fs.departAfter)}</b></div>
       ${overnight}
     </div>
     <div class="fl-heading">Search flights</div>
-    <a class="fl-primary" href="${primary.url}" target="_blank" rel="noopener">
-      ✈ ${primary.name.toUpperCase()} ↗ <span class="fl-tag">TIME-FILTERED</span>
+    <a class="fl-primary" href="${safeUrl(primary.url)}" target="_blank" rel="noopener">
+      ✈ ${esc(primary.name.toUpperCase())} ↗ <span class="fl-tag">TIME-FILTERED</span>
     </a>
     <div class="fl-grid">
-      ${rest.map(p => `<a class="fl-btn" href="${p.url}" target="_blank" rel="noopener">${p.name}</a>`).join('')}
+      ${rest.map(p => `<a class="fl-btn" href="${safeUrl(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join('')}
     </div>
     <div class="fl-foot">
-      Google Flights opens pre-filtered to arrivals before ${fs.landBy} and returns after ${fs.departAfter}.<br>
+      Google Flights opens pre-filtered to arrivals before ${esc(fs.landBy)} and returns after ${esc(fs.departAfter)}.<br>
       The rest open on the right dates and route — set times there yourself.
     </div>`;
 }
@@ -2067,8 +2080,10 @@ async function fetchSeasonGames(year, startStr, endStr, dowSet) {
   if (!matchDates.length) return [];
   const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}`
             + `&startDate=${matchDates[0]}&endDate=${endStr}&gameType=R&hydrate=team`;
+  // Let a failure throw: swallowing it here made a dead network look identical
+  // to "no games scheduled", complete with a green ready dot.
   const resp = await fetch(url);
-  if (!resp.ok) return [];
+  if (!resp.ok) throw new Error(`MLB schedule request failed (${resp.status})`);
   const data = await resp.json();
   const dateSet = new Set(matchDates);
   const games = [];
@@ -2099,9 +2114,7 @@ async function fetchGamesByDays(dowSet) {
     if (!w) continue;                        // next season not published yet
     if (w.end < todayStr) continue;          // season already over
     const start = w.start > todayStr ? w.start : todayStr;
-    try {
-      games.push(...await fetchSeasonGames(y, start, w.end, dowSet));
-    } catch(e) { console.error('schedule fetch failed for ' + y, e); }
+    games.push(...await fetchSeasonGames(y, start, w.end, dowSet));
     if (games.length) break;                 // current season still has games; don't page in next year
   }
   return games;
@@ -2235,7 +2248,11 @@ function buildCard(dateStr, game) {
   const directDrive = (typeof directDriveHours === 'number' && directDriveHours > 0) ? directDriveHours : 0;
   const isDriving = directDrive > 0;
 
-  const gameStartUTCms = game.gameDate ? new Date(game.gameDate).getTime() : null;
+  // statsapi still sends a placeholder gameDate when the start time isn't
+  // announced, flagged by status.startTimeTBD. Next season's schedule is almost
+  // entirely TBD, so taking it at face value invented 3:33 AM first pitches.
+  const startTBD = !!game.status?.startTimeTBD;
+  const gameStartUTCms = (!startTBD && game.gameDate) ? new Date(game.gameDate).getTime() : null;
   const t = computeTimes(gameStartUTCms, homeTZ, flightHours, getTzMode(), drive, directDrive);
 
   // Trip badge text
@@ -2667,8 +2684,13 @@ function arrivePDXMinutesPT(g) {
   if (!g.arrivePDXUTCms) return displayTimeToMinutes(g.arrivePDX);
   const arrive = new Date(g.arrivePDXUTCms);
   const mins = minutesInTZ(arrive, 'America/Los_Angeles');
-  if (!g.leavePDXUTCms) return mins;
-  const dayOffset = dayDiffInTZ(arrive, new Date(g.leavePDXUTCms), 'America/Los_Angeles');
+  // Anchor to the GAME's Pacific day, not the departure moment. For an early
+  // east-coast game you leave PDX before midnight the night before, and
+  // anchoring on departure made a same-evening return look like a +1d arrival,
+  // silently excluding it from a "home by 11pm" window.
+  const anchor = g.gameStartUTCms || g.leavePDXUTCms;
+  if (!anchor) return mins;
+  const dayOffset = dayDiffInTZ(arrive, new Date(anchor), 'America/Los_Angeles');
   return mins + dayOffset * 1440;
 }
 // Parse a display time like "6:35 AM" or "11:05 PM" to minutes since midnight
@@ -2973,7 +2995,7 @@ async function toggleShared() {
 // only actually delete once the window closes.
 let _pendingDelete = null;
 function showUndoBar(text, onUndo, onCommit, ms) {
-  clearUndoBar(true);
+  clearUndoBar(false);   // flush any pending delete rather than dropping it
   const bar = document.createElement('div');
   bar.className = 'undo-bar';
   bar.id = 'undoBar';
@@ -2983,6 +3005,11 @@ function showUndoBar(text, onUndo, onCommit, ms) {
   document.body.appendChild(bar);
   _pendingDelete = { commit: onCommit, timer: setTimeout(() => { _pendingDelete = null; bar.remove(); onCommit(); }, ms || 5000) };
 }
+// Don't lose a deferred delete if the tab goes away mid-window.
+window.addEventListener('pagehide', () => clearUndoBar(false));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') clearUndoBar(false);
+});
 function clearUndoBar(cancelPending) {
   const bar = document.getElementById('undoBar');
   if (bar) bar.remove();
