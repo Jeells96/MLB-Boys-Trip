@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- v2026-04-27-color-fix -->
+<!-- v2026-07-31-multi-source-flights -->
 
 <html lang="en">
 <head>
@@ -364,28 +364,112 @@ gap: 10px;
 .mt-val.b { color: #5ca8ff; }
 .mt-val.g { color: #3fb68c; }
 .mt-val.r { color: #ff5f57; }
-.modal-expedia-btn {
-display: block;
-background: var(–accent);
-color: #000;
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 18px;
-letter-spacing: 1.5px;
-text-align: center;
-padding: 13px 16px;
-border-radius: 12px;
-text-decoration: none;
-margin-bottom: 8px;
-transition: opacity 0.12s;
+/* ── FLIGHT SEARCH PANEL (multi-source) ── */
+.fl-window {
+  background: #1c2128;
+  border: 1px solid #2b3a4a;
+  border-radius: 10px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
 }
-.modal-expedia-btn:active { opacity: 0.8; }
-.modal-link-note {
-text-align: center;
-font-family: ‘DM Mono’, monospace;
-font-size: 10px;
-color: var(–muted);
-margin-bottom: 16px;
+.fl-window-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: #7d8590;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
 }
+.fl-window-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: #e6edf3;
+  line-height: 1.6;
+}
+.fl-window-row span:first-child { color: #7d8590; }
+.fl-window-row b { font-weight: 500; color: #5ca8ff; }
+.fl-window-note {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: #e8c56a;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.fl-heading {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: #7d8590;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px 2px;
+}
+.fl-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #e8c56a;
+  color: #000;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 1.5px;
+  text-align: center;
+  padding: 13px 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: opacity 0.12s;
+}
+.fl-primary:active { opacity: 0.8; }
+.fl-primary .fl-tag {
+  background: rgba(0,0,0,0.72);
+  color: #e8c56a;
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.3px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.fl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.fl-btn {
+  display: block;
+  background: #1c2128;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  color: #e6edf3;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-align: center;
+  padding: 9px 4px;
+  text-decoration: none;
+  transition: border-color 0.12s;
+}
+.fl-btn:active { border-color: #e8c56a; opacity: 0.8; }
+.fl-foot {
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: #7d8590;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+/* Compact flight row used on favorite / shared cards */
+.fl-row-compact {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.fl-row-compact .fl-btn { flex: 1; min-width: 74px; padding: 7px 4px; font-size: 9px; }
 .modal-close {
 display: block;
 text-align: center;
@@ -1013,10 +1097,7 @@ text-align: right;
     <div class="modal-matchup" id="mMatchup"></div>
     <div class="modal-sub" id="mSub"></div>
     <div class="modal-timing" id="mTiming"></div>
-    <a class="modal-expedia-btn" id="mLink" href="#" target="_blank" rel="noopener">
-      ✈ SEARCH FLIGHTS ON EXPEDIA ↗
-    </a>
-    <div class="modal-link-note">PDX → destination · Round-trip · Outbound &amp; return same Saturday</div>
+    <div id="mFlights"></div>
     <div class="modal-fav-btn" id="mFavBtn" onclick="toggleFavorite()">⭐ SAVE TO FAVORITES</div>
     <div class="modal-shared-btn" id="mSharedBtn" onclick="toggleShared()">🔗 SHARE THIS GAME</div>
     <div class="modal-close" onclick="closeModal()">CLOSE</div>
@@ -1160,7 +1241,9 @@ function getTeamByCode(code) {
     for (const id in TEAM_INFO) {
       const row = TEAM_INFO[id];
       _teamByCode[row[0]] = {
+        city: row[1],
         homeTZ: row[2],
+        iata: row[3],
         flightHours: row[4],
         driveMinutes: row[5] || 30,
         directDriveHours: row[6] || 0
@@ -1227,9 +1310,9 @@ function deriveGameStartUTCms(dateLabel, etTimeStr) {
 // computeTimes() can render in either tz mode. Returns the same object for
 // chaining; mutates in place.
 function backfillTzData(f) {
-  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null && f.driveMinutes != null && f.directDriveHours != null) return f;
-  // Try home team code -> timezone + flightHours + driveMinutes + directDriveHours
-  if (f.homeTZ == null || f.flightHours == null || f.driveMinutes == null || f.directDriveHours == null) {
+  if (f.gameStartUTCms && f.homeTZ != null && f.flightHours != null && f.driveMinutes != null && f.directDriveHours != null && f.destIata) return f;
+  // Try home team code -> timezone + airport + flightHours + driveMinutes + directDriveHours
+  if (f.homeTZ == null || f.flightHours == null || f.driveMinutes == null || f.directDriveHours == null || !f.destIata || !f.homeCity) {
     const homeCode = getHomeCodeFromMatchup(f.matchup);
     const info = homeCode ? getTeamByCode(homeCode) : null;
     if (info) {
@@ -1237,6 +1320,9 @@ function backfillTzData(f) {
       if (f.flightHours == null) f.flightHours = info.flightHours;
       if (f.driveMinutes == null) f.driveMinutes = info.driveMinutes;
       if (f.directDriveHours == null) f.directDriveHours = info.directDriveHours;
+      if (!f.destIata) f.destIata = info.iata;
+      if (!f.homeCity) f.homeCity = info.city;
+      if (!f.homeCode) f.homeCode = homeCode;
     }
   }
   // Derive gameStartUTCms from arriveby (which equals gameStart - 3h, displayed in ET)
@@ -1325,18 +1411,231 @@ function toTZ(date, tz) {
     timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true
   }).format(date);
 }
+// 'YYYY-MM-DD' for a moment as seen in a given timezone.
+function dateStrInTZ(date, tz) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date).reduce((o, x) => (o[x.type] = x.value, o), {});
+  return `${p.year}-${p.month}-${p.day}`;
+}
+// Hour of day (0–23) for a moment as seen in a given timezone.
+function hourInTZ(date, tz) {
+  const s = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', hour12: false
+  }).format(date);
+  const h = parseInt(s, 10);
+  return isNaN(h) ? 0 : (h % 24);
+}
+// Minutes since midnight for a moment as seen in a given timezone.
+function minutesInTZ(date, tz) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(date).reduce((o, x) => (o[x.type] = x.value, o), {});
+  return (parseInt(p.hour, 10) % 24) * 60 + parseInt(p.minute, 10);
+}
+// Whole-day difference between two moments as seen in a timezone (a - b).
+// Used to flag times that spill onto the next/previous calendar day.
+function dayDiffInTZ(a, b, tz) {
+  const da = dateStrInTZ(a, tz).split('-').map(Number);
+  const db = dateStrInTZ(b, tz).split('-').map(Number);
+  const ua = Date.UTC(da[0], da[1] - 1, da[2]);
+  const ub = Date.UTC(db[0], db[1] - 1, db[2]);
+  return Math.round((ua - ub) / 86400000);
+}
+// "+1d" / "−1d" suffix for a time that lands on a different calendar day.
+function dayTag(diff) {
+  if (!diff) return '';
+  return diff > 0 ? `+${diff}d` : `${diff}d`;
+}
 function formatShortDate(dateStr) {
   const [y,m,d] = dateStr.split('-').map(Number);
   return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 }
-function expediaURL(iata, dateStr) {
-  const [y,m,d] = dateStr.split('-');
-  const dep = `${y}-${m}-${d}`;
-  return `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=from%3APDX%2Cto%3A${iata}%2Cdeparture%3A${dep}TANYT&leg2=from%3A${iata}%2Cto%3APDX%2Cdeparture%3A${dep}TANYT&passengers=adults%3A1&mode=search`;
+// ─── FLIGHT SEARCH (multi-source) ─────────────────────────────────────────────
+// Every booking site gets the same trip: PDX → destination on the outbound date,
+// destination → PDX on the *return* date (which is often the next calendar day
+// for a night game on the east coast — the old single-Expedia link always booked
+// the return on the same Saturday, which was wrong for those trips).
+//
+// Where a site supports time filtering in its URL, we bake in the two constraints
+// that actually matter:
+//   • outbound must LAND by the time we need to be heading to the stadium
+//   • return must DEPART no earlier than we can leave the city after the game
+const ORIGIN_IATA = 'PDX';
+
+// -- Minimal protobuf writer, just enough for Google Flights' `tfs` param -------
+function _pbVarint(n) {
+  const out = [];
+  n = Math.max(0, Math.floor(n));
+  while (n > 127) { out.push((n & 0x7f) | 0x80); n = Math.floor(n / 128); }
+  out.push(n);
+  return out;
+}
+function _pbTag(field, wire) { return _pbVarint((field << 3) | wire); }
+function _pbInt(field, n)    { return _pbTag(field, 0).concat(_pbVarint(n)); }
+function _pbBytes(field, bytes) { return _pbTag(field, 2).concat(_pbVarint(bytes.length), bytes); }
+function _pbStr(field, str)  { return _pbBytes(field, Array.from(new TextEncoder().encode(str))); }
+function _pbB64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+
+// Google Flights encodes the whole search into a base64 protobuf (`tfs`).
+// Schema (message FlightData): 2=date, 8=earliestDepartHour, 9=latestDepartHour,
+// 10=earliestArriveHour, 11=latestArriveHour, 13=fromAirport, 14=toAirport.
+// Wrapper (message Info): 3=legs, 8=passengers, 9=cabin, 19=tripType.
+function _gfLeg(from, to, dateStr, opts) {
+  const o = opts || {};
+  let b = _pbStr(2, dateStr);
+  if (o.earliestDepartHour != null) b = b.concat(_pbInt(8,  o.earliestDepartHour));
+  if (o.latestDepartHour   != null) b = b.concat(_pbInt(9,  o.latestDepartHour));
+  if (o.earliestArriveHour != null) b = b.concat(_pbInt(10, o.earliestArriveHour));
+  if (o.latestArriveHour   != null) b = b.concat(_pbInt(11, o.latestArriveHour));
+  b = b.concat(_pbBytes(13, _pbStr(2, from)));
+  b = b.concat(_pbBytes(14, _pbStr(2, to)));
+  return b;
+}
+function googleFlightsURL(dest, outDate, retDate, landByHour, departAfterHour) {
+  try {
+    const out = _gfLeg(ORIGIN_IATA, dest, outDate, { latestArriveHour: landByHour });
+    const ret = _gfLeg(dest, ORIGIN_IATA, retDate, { earliestDepartHour: departAfterHour });
+    let info = _pbBytes(3, out).concat(_pbBytes(3, ret));
+    info = info.concat(_pbBytes(8, _pbVarint(1)));  // passengers: [adult]
+    info = info.concat(_pbInt(9, 1));               // cabin: economy
+    info = info.concat(_pbInt(19, 1));              // trip: round trip
+    return `https://www.google.com/travel/flights?tfs=${encodeURIComponent(_pbB64(info))}&hl=en&curr=USD`;
+  } catch(e) {
+    // If anything about the encoding breaks, fall back to a plain search that
+    // Google parses from natural language — no time filter, but never a dead link.
+    const q = `Flights from ${ORIGIN_IATA} to ${dest} on ${outDate} through ${retDate}`;
+    return `https://www.google.com/travel/flights?q=${encodeURIComponent(q)}`;
+  }
+}
+
+function expediaURL(iata, outDate, retDate) {
+  const ret = retDate || outDate;
+  return `https://www.expedia.com/Flights-Search?trip=roundtrip`
+       + `&leg1=from%3A${ORIGIN_IATA}%2Cto%3A${iata}%2Cdeparture%3A${outDate}TANYT`
+       + `&leg2=from%3A${iata}%2Cto%3A${ORIGIN_IATA}%2Cdeparture%3A${ret}TANYT`
+       + `&passengers=adults%3A1&mode=search`;
+}
+function kayakURL(iata, outDate, retDate) {
+  return `https://www.kayak.com/flights/${ORIGIN_IATA}-${iata}/${outDate}/${retDate}?sort=bestflight_a&adults=1`;
+}
+function momondoURL(iata, outDate, retDate) {
+  return `https://www.momondo.com/flight-search/${ORIGIN_IATA}-${iata}/${outDate}/${retDate}?sort=bestflight_a&adults=1`;
+}
+function skyscannerURL(iata, outDate, retDate) {
+  const short = s => s.slice(2).replace(/-/g, ''); // YYYY-MM-DD -> YYMMDD
+  return `https://www.skyscanner.com/transport/flights/${ORIGIN_IATA.toLowerCase()}/${iata.toLowerCase()}`
+       + `/${short(outDate)}/${short(retDate)}/?adultsv2=1&cabinclass=economy&rtn=1`;
+}
+// Southwest is worth its own button: its fares don't appear on Google Flights,
+// Kayak or any of the OTAs. If it doesn't fly the route it just says so.
+function southwestURL(iata, outDate, retDate) {
+  return `https://www.southwest.com/air/booking/select.html?originationAirportCode=${ORIGIN_IATA}`
+       + `&destinationAirportCode=${iata}&departureDate=${outDate}&returnDate=${retDate}`
+       + `&tripType=roundTrip&adultPassengersCount=1`;
+}
+
+// Build the full set of search links for one trip.
+//   landInCityUTCms  - the latest we can touch down and still make the stadium
+//   leaveCityUTCms   - the earliest we're willing to head back to the airport
+// Hours are floored into the *local* timezone of the airport the filter applies
+// to, which is how Google Flights interprets them.
+function buildFlightSearch(destIata, homeTZ, leavePDXUTCms, landInCityUTCms, leaveCityUTCms) {
+  const tz = homeTZ || 'America/New_York';
+  const land  = new Date(landInCityUTCms);
+  const leave = new Date(leaveCityUTCms);
+  // Each leg's search date is its *departure* date in the departing airport's
+  // local time: outbound leaves PDX (Pacific), return leaves the host city.
+  const outDate = dateStrInTZ(new Date(leavePDXUTCms), 'America/Los_Angeles');
+  const retDate = dateStrInTZ(leave, tz);
+  const landByHour      = hourInTZ(land, tz);
+  const departAfterHour = hourInTZ(leave, tz);
+
+  return {
+    outDate, retDate, landByHour, departAfterHour,
+    landBy: toTZ(land, tz),
+    departAfter: toTZ(leave, tz),
+    sameDayReturn: outDate === retDate,
+    providers: [
+      { key: 'google',     name: 'Google Flights', timed: true,
+        url: googleFlightsURL(destIata, outDate, retDate, landByHour, departAfterHour) },
+      { key: 'kayak',      name: 'Kayak',      timed: false, url: kayakURL(destIata, outDate, retDate) },
+      { key: 'skyscanner', name: 'Skyscanner', timed: false, url: skyscannerURL(destIata, outDate, retDate) },
+      { key: 'expedia',    name: 'Expedia',    timed: false, url: expediaURL(destIata, outDate, retDate) },
+      { key: 'momondo',    name: 'Momondo',    timed: false, url: momondoURL(destIata, outDate, retDate) },
+      { key: 'southwest',  name: 'Southwest',  timed: false, url: southwestURL(destIata, outDate, retDate) },
+    ]
+  };
+}
+
+// Same thing, starting from a card/favorite/shared object. Returns null when the
+// item has no usable timing data (very old saved records).
+function flightSearchForItem(item) {
+  if (!item) return null;
+  if (item.directDriveHours > 0) return null;              // driving trips have no flight
+  const code = item.homeCode || getHomeCodeFromMatchup(item.matchup);
+  const info = code ? getTeamByCode(code) : null;
+  const iata = item.destIata || (info && info.iata) || '';
+  if (!iata) return null;
+  if (!item.gameStartUTCms || item.homeTZ == null || item.flightHours == null) return null;
+  const t = computeTimes(item.gameStartUTCms, item.homeTZ, item.flightHours, getTzMode(),
+                         item.driveMinutes, item.directDriveHours);
+  if (!t.leavePDXUTCms || !t.landInCityUTCms || !t.leaveCityUTCms) return null;
+  return buildFlightSearch(iata, item.homeTZ, t.leavePDXUTCms, t.landInCityUTCms, t.leaveCityUTCms);
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr, driveMinutesStr, directDriveHoursStr) {
+// Render the "search flights" block: the exact window the trip needs, then one
+// link per booking site. Sites that accept a time filter in their URL get it
+// baked in and are tagged so it's obvious which results are pre-filtered.
+function renderFlightsPanel(el, item, homeCity) {
+  if (!el) return;
+  if (item && item.directDriveHours > 0) {
+    const dest = encodeURIComponent(homeCity || '');
+    el.innerHTML = `
+      <a class="fl-primary" href="https://www.google.com/maps/dir/Portland+OR/${dest}" target="_blank" rel="noopener">🚗 DRIVING DIRECTIONS ↗</a>
+      <div class="fl-foot">No flight needed — this one's a drive from Portland.</div>`;
+    return;
+  }
+  const fs = flightSearchForItem(item);
+  if (!fs) {
+    const fallback = item && item.expUrl;
+    el.innerHTML = fallback
+      ? `<a class="fl-primary" href="${fallback}" target="_blank" rel="noopener">✈ SEARCH FLIGHTS ↗</a>
+         <div class="fl-foot">Saved before flight times were tracked — this link isn't time-filtered.</div>`
+      : `<div class="fl-foot">No flight info available for this game.</div>`;
+    return;
+  }
+  const primary = fs.providers[0];
+  const rest = fs.providers.slice(1);
+  const overnight = fs.sameDayReturn ? '' :
+    `<div class="fl-window-note">⚠ Return flight is the next day (${formatShortDate(fs.retDate)}) — all searches are booked that way.</div>`;
+
+  el.innerHTML = `
+    <div class="fl-window">
+      <div class="fl-window-title">Flight window we need</div>
+      <div class="fl-window-row"><span>Out ${formatShortDate(fs.outDate)} · land by</span><b>${fs.landBy}</b></div>
+      <div class="fl-window-row"><span>Back ${formatShortDate(fs.retDate)} · depart after</span><b>${fs.departAfter}</b></div>
+      ${overnight}
+    </div>
+    <div class="fl-heading">Search flights</div>
+    <a class="fl-primary" href="${primary.url}" target="_blank" rel="noopener">
+      ✈ ${primary.name.toUpperCase()} ↗ <span class="fl-tag">TIME-FILTERED</span>
+    </a>
+    <div class="fl-grid">
+      ${rest.map(p => `<a class="fl-btn" href="${p.url}" target="_blank" rel="noopener">${p.name}</a>`).join('')}
+    </div>
+    <div class="fl-foot">
+      Google Flights opens pre-filtered to arrivals before ${fs.landBy} and returns after ${fs.departAfter}.<br>
+      The rest open on the right dates and route — set times there yourself.
+    </div>`;
+}
+
+function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameStartUTCmsStr, flightHoursStr, driveMinutesStr, directDriveHoursStr, destIata, homeCity) {
   const gameStartUTCms = gameStartUTCmsStr ? parseInt(gameStartUTCmsStr) : null;
   const flightHours = parseFloat(flightHoursStr) || 0;
   const driveMinutes = (driveMinutesStr === undefined || driveMinutesStr === '') ? 30 : parseFloat(driveMinutesStr);
@@ -1345,6 +1644,8 @@ function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameSt
   currentModalGame = {
     gameId, matchup, dateLabel, flightStr, expUrl,
     homeTZ: homeTZ || '',
+    destIata: destIata || '',
+    homeCity: homeCity || '',
     gameStartUTCms: gameStartUTCms || 0,
     flightHours: flightHours,
     driveMinutes: driveMinutes,
@@ -1359,20 +1660,21 @@ function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameSt
     ? `${dateLabel} · 🚗 ${directDriveHours}h drive from PDX`
     : `${dateLabel} · ✈ PDX ${flightStr} · 🚗 ${driveMinutes}min`;
   document.getElementById('mSub').textContent = subline;
-  document.getElementById('mLink').href = expUrl;
   // Labels also change for driving trips
   const leaveLabel = t.isDriving ? 'Leave PDX (drive)' : 'Flight departs PDX';
   const landLabel  = t.isDriving ? 'Arrive in city' : 'Land in city';
   const returnLabel = t.isDriving ? 'Arrive home (PDX)' : 'Arrive PDX';
+  const d = s => s ? ` <span style="color:#ff5f57;font-size:9px;">${s}</span>` : '';
   document.getElementById('mTiming').innerHTML = `
-    <div class="mt-item"><div class="mt-label">${leaveLabel}</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">${landLabel}</div><div class="mt-val b">${t.landInCity}${t.landInCityTZ ? ' ' + t.landInCityTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Arrive at stadium</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">${leaveLabel}</div><div class="mt-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}${d(t.leavePDXDay)}</div></div>
+    <div class="mt-item"><div class="mt-label">${landLabel}</div><div class="mt-val b">${t.landInCity}${t.landInCityTZ ? ' ' + t.landInCityTZ : ''}${d(t.landInCityDay)}</div></div>
+    <div class="mt-item"><div class="mt-label">Arrive at stadium</div><div class="mt-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}${d(t.arrivebyDay)}</div></div>
     <div class="mt-item"><div class="mt-label">Game start</div><div class="mt-val g">${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Game end (~3h)</div><div class="mt-val g">${t.gameEndDisplay}${t.gameEndTZ ? ' ' + t.gameEndTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}</div></div>
-    <div class="mt-item"><div class="mt-label">${returnLabel}</div><div class="mt-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</div></div>
+    <div class="mt-item"><div class="mt-label">Game end (~3h)</div><div class="mt-val g">${t.gameEndDisplay}${t.gameEndTZ ? ' ' + t.gameEndTZ : ''}${d(t.gameEndDay)}</div></div>
+    <div class="mt-item"><div class="mt-label">Leave city</div><div class="mt-val r">${t.leaveCity}${t.leaveCityTZ ? ' ' + t.leaveCityTZ : ''}${d(t.leaveCityDay)}</div></div>
+    <div class="mt-item"><div class="mt-label">${returnLabel}</div><div class="mt-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}${d(t.arrivePDXDay)}</div></div>
   `;
+  renderFlightsPanel(document.getElementById('mFlights'), currentModalGame, homeCity);
   updateFavBtn(isFavorited(gameId));
   updateSharedBtn(isShared(gameId));
   document.getElementById('modalOverlay').classList.add('open');
@@ -1383,6 +1685,8 @@ function openModal(matchup, dateLabel, flightStr, expUrl, gameId, homeTZ, gameSt
 function openCardDetail(item) {
   if (!item) return;
   backfillTzData(item);
+  const code = item.homeCode || getHomeCodeFromMatchup(item.matchup);
+  const info = code ? getTeamByCode(code) : null;
   openModal(
     item.matchup || '',
     item.dateLabel || '',
@@ -1393,7 +1697,9 @@ function openCardDetail(item) {
     String(item.gameStartUTCms || ''),
     String(item.flightHours || ''),
     String(item.driveMinutes != null ? item.driveMinutes : ''),
-    String(item.directDriveHours != null ? item.directDriveHours : '0')
+    String(item.directDriveHours != null ? item.directDriveHours : '0'),
+    item.destIata || (info && info.iata) || '',
+    item.homeCity || (info && info.city) || ''
   );
 }
 function openFavDetail(gameId) {
@@ -1496,6 +1802,9 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes, d
       arriveby: '—', arrivebyTZ: '',
       leaveCity: '—', leaveCityTZ: '',
       arrivePDX: '—', arrivePDXTZ: '',
+      leavePDXDay: '', landInCityDay: '', arrivebyDay: '', gameEndDay: '', leaveCityDay: '', arrivePDXDay: '',
+      leavePDXUTCms: null, landInCityUTCms: null, arriveStadiumUTCms: null,
+      leaveCityUTCms: null, arrivePDXUTCms: null,
       driveMinutes: drive,
       directDriveHours: directDrive,
       isDriving: isDriving,
@@ -1532,21 +1841,39 @@ function computeTimes(gameStartUTCms, homeTZ, flightHours, mode, driveMinutes, d
     startTZ = leaveTZ = arriveTZ = cityTZ = returnTZ = 'America/New_York';
   }
 
+  // Flag any time that lands on a different calendar day than the game itself,
+  // measured in the same timezone the time is displayed in. Without this a
+  // 1:40 AM return reads as "1:40 AM" and looks like it happens before the game.
+  const dd = (d, tz) => dayTag(dayDiffInTZ(d, gameStart, tz));
+
   return {
     startDisplay: toTZ(gameStart, startTZ),
     startTZ: tzShort(startTZ),
     gameEndDisplay: toTZ(gameEndUTC, startTZ),
     gameEndTZ: tzShort(startTZ),
+    gameEndDay: dd(gameEndUTC, startTZ),
     leavePDX: toTZ(leavePDXUTC, leaveTZ),
     leavePDXTZ: tzShort(leaveTZ),
+    leavePDXDay: dd(leavePDXUTC, leaveTZ),
     landInCity: toTZ(landInCityUTC, arriveTZ),
     landInCityTZ: tzShort(arriveTZ),
+    landInCityDay: dd(landInCityUTC, arriveTZ),
     arriveby: toTZ(arriveStadiumUTC, arriveTZ),
     arrivebyTZ: tzShort(arriveTZ),
+    arrivebyDay: dd(arriveStadiumUTC, arriveTZ),
     leaveCity: toTZ(leaveCityUTC, cityTZ),
     leaveCityTZ: tzShort(cityTZ),
+    leaveCityDay: dd(leaveCityUTC, cityTZ),
     arrivePDX: toTZ(arrivePDXUTC, returnTZ),
     arrivePDXTZ: tzShort(returnTZ),
+    arrivePDXDay: dd(arrivePDXUTC, returnTZ),
+    // Raw moments — used for flight-search dates and for filtering in an
+    // explicit timezone rather than whatever the display mode happens to be.
+    leavePDXUTCms: leavePDXUTC.getTime(),
+    landInCityUTCms: landInCityUTC.getTime(),
+    arriveStadiumUTCms: arriveStadiumUTC.getTime(),
+    leaveCityUTCms: leaveCityUTC.getTime(),
+    arrivePDXUTCms: arrivePDXUTC.getTime(),
     driveMinutes: drive,
     directDriveHours: directDrive,
     isDriving: isDriving,
@@ -1575,7 +1902,13 @@ function buildCard(dateStr, game) {
   const tripIcon = isDriving ? '🚗' : '✈';
   const flightBadge = `${tripIcon}${tripStr}`;
   const flightStr = isDriving ? `🚗 ${directDrive}h drive` : (flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`);
-  const expUrl    = expediaURL(homeIATA, dateStr);
+  // Multi-source search, with the trip's real dates and time window baked in.
+  const fs = isDriving ? null
+    : buildFlightSearch(homeIATA, homeTZ, t.leavePDXUTCms, t.landInCityUTCms, t.leaveCityUTCms);
+  // expUrl stays on the object for backwards compatibility with favorites and
+  // shared docs saved before multi-source search existed.
+  const expUrl    = fs ? fs.providers.find(p => p.key === 'expedia').url : expediaURL(homeIATA, dateStr, dateStr);
+  const bestUrl   = fs ? fs.providers[0].url : expUrl;
   const matchup   = `${awayCode}@${homeCode}`;
   const matchupFull = `${awayCode} @ ${homeCode}`;
   const inputId   = `price-${game.gamePk}`;
@@ -1583,29 +1916,32 @@ function buildCard(dateStr, game) {
   let savedPrice  = '';
   try { savedPrice = localStorage.getItem(inputId) || ''; } catch(e) {}
 
-  // For driving trips, replace Expedia button with a Maps shortcut (or hide).
+  // For driving trips, replace the flight button with a Maps shortcut.
   // Keep the same yellow chip style; clicking opens Google Maps to the stadium city.
-  const expediaBtnHtml = isDriving
+  // For flights it goes straight to the time-filtered Google Flights search.
+  const flightBtnHtml = isDriving
     ? `<a class="expedia-btn" href="https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(homeCity)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗</a>`
-    : `<a class="expedia-btn" href="${expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">$$</a>`;
+    : `<a class="expedia-btn" href="${bestUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Google Flights, filtered to this trip's times">✈$</a>`;
+  const dayFlag = s => s ? ` <span style="color:#ff5f57;">${s}</span>` : '';
 
   // Inline card (small) — pass extra fields to openModal so the modal/share/fav
-  // path has homeTZ + gameStartUTCms + driveMinutes + directDriveHours for re-rendering.
+  // path has homeTZ + gameStartUTCms + driveMinutes + directDriveHours + airport
+  // for re-rendering and for rebuilding the flight links.
   const html = `
     <div class="game-card"
-      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}','${drive}','${directDrive}')">
+      onclick="openModal('${matchupFull}','${dateLabel}','${flightStr}','${expUrl}','${game.gamePk}','${homeTZ}','${gameStartUTCms || ''}','${flightHours}','${drive}','${directDrive}','${homeIATA}','${homeCity.replace(/'/g, "\\'")}')">
       <div class="card-head">
         <div class="matchup">${matchup}</div>
         <div class="card-meta"><strong>${homeCity}</strong><br>${t.startDisplay}${t.startTZ ? ' ' + t.startTZ : ''}</div>
       </div>
       <div class="card-flight">
         <span class="flight-badge">${flightBadge}</span>
-        ${expediaBtnHtml}
+        ${flightBtnHtml}
       </div>
       <div class="card-timing">
-        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}</span></div>
-        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}</span></div>
-        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}</span></div>
+        <div class="t-row"><span class="t-label">LvPDX</span><span class="t-val y">${t.leavePDX}${t.leavePDXTZ ? ' ' + t.leavePDXTZ : ''}${dayFlag(t.leavePDXDay)}</span></div>
+        <div class="t-row"><span class="t-label">Arrv</span><span class="t-val g">${t.arriveby}${t.arrivebyTZ ? ' ' + t.arrivebyTZ : ''}${dayFlag(t.arrivebyDay)}</span></div>
+        <div class="t-row"><span class="t-label">PDX✈</span><span class="t-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}${dayFlag(t.arrivePDXDay)}</span></div>
       </div>
       <div class="card-price">
         <span class="p-label">$</span>
@@ -1616,7 +1952,7 @@ function buildCard(dateStr, game) {
       </div>
     </div>`;
 
-  return { homeCity, homeCode, homeTZ, gameStartUTCms, flightHours, driveMinutes: drive, directDriveHours: directDrive, isDriving: isDriving, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, savedPrice, startDisplay: t.startDisplay, html };
+  return { homeCity, homeCode, homeTZ, homeIATA, gameStartUTCms, flightHours, driveMinutes: drive, directDriveHours: directDrive, isDriving: isDriving, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, leavePDXUTCms: t.leavePDXUTCms, arrivePDXUTCms: t.arrivePDXUTCms, leaveCityUTCms: t.leaveCityUTCms, savedPrice, startDisplay: t.startDisplay, html };
 }
 
 function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
@@ -1640,11 +1976,13 @@ function render() {
       return fh <= activeFilters.maxFlight;
     });
   }
+  // Departure / return windows are always evaluated in Portland time, whatever
+  // the display mode is set to — "leave PDX at 6am" means 6am in Portland.
   if (activeFilters.leavePDXFrom || activeFilters.leavePDXTo) {
     const fromMin = timeToMinutes(activeFilters.leavePDXFrom);
     const toMin   = timeToMinutes(activeFilters.leavePDXTo);
     filtered = filtered.filter(g => {
-      const t = displayTimeToMinutes(g.leavePDX);
+      const t = leavePDXMinutesPT(g);
       if (t === null) return true;
       if (fromMin !== null && t < fromMin) return false;
       if (toMin   !== null && t > toMin)   return false;
@@ -1655,11 +1993,21 @@ function render() {
     const fromMin = timeToMinutes(activeFilters.returnFrom);
     const toMin   = timeToMinutes(activeFilters.returnTo);
     filtered = filtered.filter(g => {
-      const t = displayTimeToMinutes(g.arrivePDX);
+      // Minutes are counted from midnight of the *departure* day, so a 1:40 AM
+      // next-morning landing reads as 1540, not 100, and correctly falls outside
+      // a "home by 11pm" window instead of sneaking in as an early morning time.
+      const t = arrivePDXMinutesPT(g);
       if (t === null) return true;
       if (fromMin !== null && t < fromMin) return false;
       if (toMin   !== null && t > toMin)   return false;
       return true;
+    });
+  }
+  if (activeFilters.sameDayOnly) {
+    filtered = filtered.filter(g => {
+      if (g.isDriving) return true;
+      if (!g.leavePDXUTCms || !g.arrivePDXUTCms) return true;
+      return dayDiffInTZ(new Date(g.arrivePDXUTCms), new Date(g.leavePDXUTCms), 'America/Los_Angeles') === 0;
     });
   }
   if (activeFilters.maxPrice) {
@@ -1786,6 +2134,7 @@ function openFilterPanel() {
   document.getElementById('fpMaxPrice').value     = activeFilters.maxPrice   || '';
   document.getElementById('fpStartFrom').value     = activeFilters.startFrom  || '';
   document.getElementById('fpStartTo').value       = activeFilters.startTo    || '';
+  document.getElementById('fpSameDayOnly').checked = !!activeFilters.sameDayOnly;
   buildMonthChips();
   document.getElementById('fpOverlay').classList.add('open');
 }
@@ -1799,6 +2148,8 @@ function clearFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const sameDay = document.getElementById('fpSameDayOnly');
+  if (sameDay) sameDay.checked = false;
   buildMonthChips();
   updateFilterBtn();
   document.getElementById('fpOverlay').classList.remove('open');
@@ -1822,6 +2173,7 @@ function applyFilters() {
     months:       months.size > 0 ? months : null,
     startFrom:    document.getElementById('fpStartFrom').value                 || null,
     startTo:      document.getElementById('fpStartTo').value                   || null,
+    sameDayOnly:  document.getElementById('fpSameDayOnly').checked || null,
   };
   updateFilterBtn();
   document.getElementById('fpOverlay').classList.remove('open');
@@ -1839,6 +2191,22 @@ function timeToMinutes(str) {
   if (!str) return null;
   const [h, m] = str.split(':').map(Number);
   return h * 60 + m;
+}
+// Minutes since midnight Portland time for the outbound PDX departure.
+// Falls back to parsing the rendered string for records with no raw timestamp.
+function leavePDXMinutesPT(g) {
+  if (g.leavePDXUTCms) return minutesInTZ(new Date(g.leavePDXUTCms), 'America/Los_Angeles');
+  return displayTimeToMinutes(g.leavePDX);
+}
+// Minutes for the arrival back in PDX, counted from midnight of the departure
+// day so that next-morning landings compare as 24:00+ rather than wrapping.
+function arrivePDXMinutesPT(g) {
+  if (!g.arrivePDXUTCms) return displayTimeToMinutes(g.arrivePDX);
+  const arrive = new Date(g.arrivePDXUTCms);
+  const mins = minutesInTZ(arrive, 'America/Los_Angeles');
+  if (!g.leavePDXUTCms) return mins;
+  const dayOffset = dayDiffInTZ(arrive, new Date(g.leavePDXUTCms), 'America/Los_Angeles');
+  return mins + dayOffset * 1440;
 }
 // Parse a display time like "6:35 AM" or "11:05 PM" to minutes since midnight
 function displayTimeToMinutes(str) {
@@ -1924,6 +2292,10 @@ function renderFavs() {
     const endStr = gameEnd ? (' · 🏁 ' + gameEnd + (endTZ ? ' ' + endTZ : '')) : '';
     const landStr = landInCity ? ((isDriving ? ' · 🅿️ ' : ' · 🛬 ') + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
     const tripLabel = isDriving ? `🚗 ${f.directDriveHours}h drive` : `✈ PDX ${f.flightStr}`;
+    // Rebuild the flight search from raw data so the link picks up the current
+    // buffer settings and the correct (possibly next-day) return date.
+    const fs = flightSearchForItem(f);
+    const flightUrl = fs ? fs.providers[0].url : (f.expUrl || '');
     return `
     <div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavDetail('${f.gameId}')">
       <div class="fav-head">
@@ -1940,7 +2312,7 @@ function renderFavs() {
         <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val y">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
       </div>
       <div class="fav-footer">
-        <a class="fav-expedia" href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ FLIGHTS ↗</a>
+        <a class="fav-expedia" href="${flightUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${fs ? 'Google Flights, filtered to this trip\'s times' : 'Flight search'}">✈ FLIGHTS ↗</a>
         <button class="fav-share-btn" id="fav-share-${f.gameId}" onclick="event.stopPropagation();shareFavGame('${f.gameId}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
         <div class="fav-price-wrap">
           <span class="fav-price-label">$</span>
@@ -2118,6 +2490,13 @@ function renderShared() {
     const driveLine = isDriving ? '' : ((f.driveMinutes != null) ? ` · 🚗 ${f.driveMinutes}min` : '');
     const landLine = landInCity ? ((isDriving ? ' · 🅿️ ' : ' · 🛬 ') + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
     const tripLabel = isDriving ? `🚗 ${f.directDriveHours}h drive` : `✈ PDX ${f.flightStr}`;
+    const fs = flightSearchForItem(f);
+    const flightUrl = fs ? fs.providers[0].url : (f.expUrl || '');
+    const flightBtnLabel = isDriving ? '🚗 DRIVING DIRECTIONS ↗'
+                         : (fs ? '✈ SEARCH FLIGHTS — TIMED ↗' : '✈ SEARCH FLIGHTS ↗');
+    const flightHref = isDriving
+      ? `https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(f.homeCity || '')}`
+      : flightUrl;
 
     return `
     <div class="shared-card" onclick="openSharedDetail('${f.fbId}')">
@@ -2139,10 +2518,13 @@ function renderShared() {
       </div>
       ${notesLine}
       <div style="padding:8px 12px;border-top:1px solid var(--border);">
-        <a href="${f.expUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+        <a href="${flightHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
           style="display:block;background:var(--accent);color:#000;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;text-align:center;padding:9px;border-radius:8px;text-decoration:none;">
-          ✈ SEARCH FLIGHTS ON EXPEDIA ↗
+          ${flightBtnLabel}
         </a>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:#7d8590;text-align:center;margin-top:5px;">
+          Tap the card for Kayak, Skyscanner, Expedia, Momondo &amp; Southwest
+        </div>
       </div>
       <div class="shared-footer">
         ${priceBadge}
@@ -2395,7 +2777,7 @@ async function reloadGames() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, isDriving: result.isDriving, gameStartUTCms: result.gameStartUTCms, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, homeTZ: result.homeTZ, homeIATA: result.homeIATA, flightHours: result.flightHours, driveMinutes: result.driveMinutes, directDriveHours: result.directDriveHours, isDriving: result.isDriving, gameStartUTCms: result.gameStartUTCms, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, leavePDXUTCms: result.leavePDXUTCms, arrivePDXUTCms: result.arrivePDXUTCms, leaveCityUTCms: result.leaveCityUTCms, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
     }
     buildFilterChips(codes);
     render();
@@ -2423,7 +2805,7 @@ async function init() {
       const result = buildCard(date, game);
       if (!result) continue;
       codes.add(result.homeCode);
-      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, flightHours: result.flightHours, isDriving: result.isDriving, gameStartUTCms: result.gameStartUTCms, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
+      allGames.push({ date, homeCity: result.homeCity, homeCode: result.homeCode, homeTZ: result.homeTZ, homeIATA: result.homeIATA, flightHours: result.flightHours, driveMinutes: result.driveMinutes, directDriveHours: result.directDriveHours, isDriving: result.isDriving, gameStartUTCms: result.gameStartUTCms, leavePDX: result.leavePDX, leaveCity: result.leaveCity, arrivePDX: result.arrivePDX, leavePDXUTCms: result.leavePDXUTCms, arrivePDXUTCms: result.arrivePDXUTCms, leaveCityUTCms: result.leaveCityUTCms, savedPrice: result.savedPrice, startDisplay: result.startDisplay, html: result.html });
     }
 
     buildFilterChips(codes);
@@ -2446,7 +2828,6 @@ init();
     <div class="fp-handle"></div>
     <div class="fp-title">⚙ FILTER GAMES</div>
 
-```
 <div class="fp-group">
   <div class="fp-label">✈ Max Flight Duration (hours)</div>
   <div class="fp-row">
@@ -2455,7 +2836,7 @@ init();
 </div>
 
 <div class="fp-group">
-  <div class="fp-label">🛫 Leave PDX — Between (ET)</div>
+  <div class="fp-label">🛫 Leave PDX — Between (Portland time)</div>
   <div class="fp-row">
     <input class="fp-input" id="fpLeavePDXFrom" type="time" placeholder="05:00">
     <span class="fp-sep">–</span>
@@ -2464,12 +2845,25 @@ init();
 </div>
 
 <div class="fp-group">
-  <div class="fp-label">🛬 Arrive Back in PDX — Between (ET)</div>
+  <div class="fp-label">🛬 Back in PDX — Between (Portland time)</div>
   <div class="fp-row">
     <input class="fp-input" id="fpReturnFrom" type="time" placeholder="20:00">
     <span class="fp-sep">–</span>
     <input class="fp-input" id="fpReturnTo" type="time" placeholder="23:59">
   </div>
+  <div style="font-family:'DM Mono',monospace;font-size:9px;color:#7d8590;margin-top:4px;line-height:1.4;">
+    Landings after midnight count as the next day, so they fall outside a “home by 11pm” window.
+  </div>
+</div>
+
+<div class="fp-group">
+  <label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #21262d;border-radius:8px;cursor:pointer;">
+    <input type="checkbox" id="fpSameDayOnly">
+    <div style="flex:1;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#e6edf3;">Same-day round trips only</div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;color:#7d8590;margin-top:2px;">Hide games where you'd get back to PDX after midnight</div>
+    </div>
+  </label>
 </div>
 
 <div class="fp-group">
@@ -2497,7 +2891,6 @@ init();
   <button class="fp-clear" onclick="clearFilters()">CLEAR</button>
   <button class="fp-apply" onclick="applyFilters()">APPLY FILTERS</button>
 </div>
-```
 
   </div>
 </div>
