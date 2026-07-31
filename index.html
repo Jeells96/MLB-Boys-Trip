@@ -1154,12 +1154,30 @@ main, #favsView, #sharedView { max-width: 1180px; margin-inline: auto; }
 .modal-verdict { display: flex; gap: var(--s1); flex-wrap: wrap; margin: 0 0 var(--s3); }
 .modal-verdict .v-pill, .modal-verdict .cost-chip, .modal-verdict .wn-badge { font-size: 10px; padding: 4px 8px; }
 .fav-t-val.r, .shared-t-val.r { color: var(--text); }
+
+/* ── Shared price log ── */
+.card-price { flex-direction: column; align-items: stretch; gap: 3px; }
+.price-summary { font-family: 'DM Mono', monospace; font-size: 10px;
+                 display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; min-height: 15px; }
+.price-best  { color: var(--accent); font-weight: 500; font-size: 12px; }
+.price-by    { color: var(--muted); }
+.price-latest{ color: var(--muted); }
+.price-none  { color: var(--muted); font-style: normal; }
+.price-age   { margin-left: auto; font-size: 9px; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+.age-fresh { color: #55c79c; background: rgba(63,182,140,.14); }
+.age-warm  { color: var(--accent); background: rgba(232,197,106,.14); }
+.age-stale { color: #ff7b74; background: rgba(255,95,87,.14); }
+.age-none  { color: var(--muted); background: var(--chip); }
+.price-entry { display: flex; align-items: center; gap: 5px; }
+
+.price-entry .p-input { font-size: 16px; }
+.price-entry .p-input::placeholder { font-size: 10.5px; }
 </style>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc, limit } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBWFfe_KqRXg-5orhHU910YPzV5ET6pOcs",
@@ -1174,7 +1192,7 @@ main, #favsView, #sharedView { max-width: 1180px; margin-inline: auto; }
   const app = initializeApp(firebaseConfig);
   getAnalytics(app);
   window.db = getFirestore(app);
-  window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc };
+  window.firestoreFns = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc, limit };
 </script>
 
 </head>
@@ -2286,12 +2304,15 @@ function buildCard(dateStr, game) {
         <div class="t-row t-home"><span class="t-label">Home</span><span class="t-val y">${t.arrivePDX}${t.arrivePDXTZ ? ' ' + t.arrivePDXTZ : ''}${dayFlag(t.arrivePDXDay)}</span></div>
       </div>
       <div class="card-price">
-        <span class="p-label">$</span>
-        <input class="p-input" type="text" inputmode="decimal" placeholder="price you found"
-          data-price-key="${inputId}"
-          aria-label="Round-trip price you found for ${matchup}"
-          onclick="event.stopPropagation()"
-          onchange="savePrice('${inputId}',this.value)">
+        <div class="price-summary" data-price-summary="${game.gamePk}"></div>
+        <div class="price-entry">
+          <span class="p-label">$</span>
+          <input class="p-input" type="text" inputmode="decimal" placeholder="log a round-trip price"
+            data-price-key="${inputId}"
+            aria-label="Round-trip price per person you found for ${matchup}"
+            onclick="event.stopPropagation()"
+            onchange="savePrice('${inputId}',this.value)">
+        </div>
       </div>
     </div>`;
 
@@ -2306,6 +2327,9 @@ function hydratePrices(root) {
   root.querySelectorAll('input[data-price-key]').forEach(inp => {
     try { inp.value = localStorage.getItem(inp.dataset.priceKey) || ''; } catch(e) {}
   });
+  root.querySelectorAll('[data-price-summary]').forEach(el => {
+    el.innerHTML = priceSummaryHtml(el.getAttribute('data-price-summary'));
+  });
 }
 
 function savePrice(key, val) {
@@ -2315,7 +2339,16 @@ function savePrice(key, val) {
   const id = String(key).replace(/^price-/, '');
   const g = allGames.find(x => String(x.gameId) === id);
   if (g) g.savedPrice = clean;
-  if (activeFilters.maxPrice) render();
+  if (clean) logPriceReport(id, clean).then(() => refreshPriceCells());
+  if (activeFilters.maxPrice) render(); else refreshPriceCells();
+}
+
+// Patch the price summaries in place rather than re-rendering the whole grid,
+// so typing in one card doesn't rebuild every other one.
+function refreshPriceCells() {
+  document.querySelectorAll('[data-price-summary]').forEach(el => {
+    el.innerHTML = priceSummaryHtml(el.getAttribute('data-price-summary'));
+  });
 }
 
 // ─── FILTER STATE (multi-select by homeCity) ──────────────────────────────────
@@ -2374,8 +2407,8 @@ function render() {
   }
   if (activeFilters.maxPrice) {
     filtered = filtered.filter(g => {
-      const price = parseFloat(g.savedPrice);
-      if (!price) return true;
+      const price = bestKnownPrice(g);
+      if (price == null) return true;      // unknown prices are never filtered out
       return price <= activeFilters.maxPrice;
     });
   }
@@ -2430,7 +2463,7 @@ function render() {
       trip:   g => [g.verdictRank ?? 9, g.gameStartUTCms || 0],
       flight: g => [g.isDriving ? (g.directDriveHours || 0) : (g.flightHours ?? 99), g.gameStartUTCms || 0],
       cost:   g => [g.costFare ?? 9999, g.gameStartUTCms || 0],
-      price:  g => [parseFloat(g.savedPrice) || 99999, g.gameStartUTCms || 0],
+      price:  g => [bestKnownPrice(g) ?? 99999, g.gameStartUTCms || 0],
     }[sortMode];
     if (key) filtered = [...filtered].sort((a, b) => {
       const ka = key(a), kb = key(b);
@@ -2453,6 +2486,14 @@ function render() {
   }
   main.innerHTML = html;
   hydratePrices(main);
+}
+
+// Cheapest anyone in the group has logged, falling back to this device's entry.
+function bestKnownPrice(g) {
+  const shared = priceCache[String(g.gameId)];
+  if (shared && isFinite(shared.best)) return shared.best;
+  const local = parseFloat(g.savedPrice);
+  return isFinite(local) && local > 0 ? local : null;
 }
 
 // ─── SORT ─────────────────────────────────────────────────────────────────────
@@ -2787,6 +2828,101 @@ function switchTab(tab) {
   }
 }
 
+
+// ─── SHARED PRICE LOG ─────────────────────────────────────────────────────────
+// The manual price box used to write one string to localStorage: per-device,
+// per-person, no timestamp. Alice checked fares on Tuesday and Bob never saw it.
+// Since there is no free live fare API, the group checking for each other IS the
+// price feed -- so each check is stored as its own dated, attributed observation
+// rather than overwriting a single field. That's what makes "cheapest found",
+// "dropped $40 since Tuesday" and staleness possible for the same effort.
+//
+// Stored one doc per observation in `priceReports`. Reads are capped; this
+// collection grows forever, unlike sharedGames.
+let priceCache = {};        // gameId -> { best, bestBy, latest, latestAt, count }
+const PRICE_FETCH_LIMIT = 300;
+
+function whoAmI() {
+  try { return (localStorage.getItem('mlb_last_shared_by') || '').trim(); } catch(e) { return ''; }
+}
+
+function foldPriceReport(agg, r) {
+  const amt = Number(r.roundTrip);
+  if (!isFinite(amt) || amt <= 0) return agg;
+  const at = Number(r.foundAt) || 0;
+  if (!agg) agg = { best: amt, bestBy: r.foundBy || '', latest: amt, latestAt: at, count: 0 };
+  if (amt < agg.best) { agg.best = amt; agg.bestBy = r.foundBy || ''; }
+  if (at >= agg.latestAt) { agg.latest = amt; agg.latestAt = at; }
+  agg.count++;
+  return agg;
+}
+
+async function loadPriceReports() {
+  if (!window.db || !window.firestoreFns) return;
+  try {
+    const { collection, getDocs, query, orderBy, limit } = window.firestoreFns;
+    const q = limit
+      ? query(collection(window.db, 'priceReports'), orderBy('foundAt', 'desc'), limit(PRICE_FETCH_LIMIT))
+      : query(collection(window.db, 'priceReports'), orderBy('foundAt', 'desc'));
+    const snap = await getDocs(q);
+    const next = {};
+    snap.docs.forEach(d => {
+      const r = d.data();
+      const id = String(r.gameId || '');
+      if (id) next[id] = foldPriceReport(next[id], r);
+    });
+    priceCache = next;
+  } catch(e) {
+    // Offline, or the collection doesn't exist yet. Local prices still work.
+    console.warn('Price log unavailable:', e && e.message);
+  }
+}
+
+async function logPriceReport(gameId, amount) {
+  const amt = Number(amount);
+  if (!isFinite(amt) || amt <= 0) return;
+  const g = allGames.find(x => String(x.gameId) === String(gameId));
+  const rec = {
+    gameId: String(gameId),
+    matchup: g ? `${g.homeCode}` : '',
+    iata: g ? (g.homeIATA || '') : '',
+    roundTrip: Math.round(amt),
+    foundBy: whoAmI(),
+    foundAt: Date.now(),
+  };
+  priceCache[String(gameId)] = foldPriceReport(priceCache[String(gameId)], rec);
+  if (!window.db || !window.firestoreFns || !window.firestoreFns.addDoc) return;
+  try {
+    const { addDoc, collection } = window.firestoreFns;
+    await addDoc(collection(window.db, 'priceReports'), rec);
+  } catch(e) { console.warn('Could not save price to the group log:', e && e.message); }
+}
+
+// How fresh is the group's best price? Knowing a number is three weeks old
+// matters more than the number.
+function priceAgeInfo(latestAt) {
+  if (!latestAt) return { cls: 'age-none', text: 'not checked' };
+  const days = Math.floor((Date.now() - latestAt) / 86400000);
+  if (days <= 0) return { cls: 'age-fresh', text: 'today' };
+  if (days === 1) return { cls: 'age-fresh', text: '1d ago' };
+  if (days < 3)   return { cls: 'age-fresh', text: days + 'd ago' };
+  if (days <= 10) return { cls: 'age-warm',  text: days + 'd ago' };
+  return { cls: 'age-stale', text: days + 'd ago' };
+}
+
+function priceSummaryHtml(gameId) {
+  const a = priceCache[String(gameId)];
+  if (!a) return `<span class="price-none">nobody has checked</span>`;
+  const age = priceAgeInfo(a.latestAt);
+  const by = a.bestBy ? ` <span class="price-by">${esc(a.bestBy)}</span>` : '';
+  // best is the lowest ever logged; latest is the most recent check. If the most
+  // recent is higher, the price went UP -- say that, don't strike it through as
+  // if it fell.
+  const trend = (a.count > 1 && a.latest !== a.best)
+    ? ` <span class="price-latest">now $${esc(a.latest)}</span>` : '';
+  return `<span class="price-best">$${esc(a.best)}</span>${by}${trend}`
+       + ` <span class="price-age ${age.cls}">${esc(age.text)}</span>`;
+}
 
 // ─── SHARED GAMES (FIREBASE) ──────────────────────────────────────────────────
 let sharedGamesCache = [];
@@ -3250,6 +3386,7 @@ async function init() {
     render();
     updateFavTab();
     getSharedGames().then(() => updateSharedTab());
+    loadPriceReports().then(() => refreshPriceCells());
   } catch(err) {
     dot.className = 'status-dot error';
     document.getElementById('main').innerHTML = `<div class="error-state">
