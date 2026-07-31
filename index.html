@@ -946,6 +946,28 @@ background: #15131f;
 }
 .sa-row { display: flex; align-items: center; gap: 6px; }
 .sa-row-top { align-items: flex-start; }
+
+/* ── SHEETS: scrollable, never clipped ── */
+/* Sheets had no max-height and no overflow, so on a short viewport the top of a
+   692px modal computed to -42px and the title was simply unreachable. */
+.modal-overlay, .fp-overlay {
+  overflow-y: auto;
+  padding-top: 24px;
+  overscroll-behavior: contain;
+}
+.modal-sheet, .fp-sheet {
+  max-height: 92vh;
+  max-height: calc(100dvh - 24px);   /* dvh second so old Safari keeps the vh value */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+body.sheet-open { overflow: hidden; }
+.expedia-btn.is-disabled {
+  background: var(--chip);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: default;
+}
 </style>
 
 <script type="module">
@@ -1138,7 +1160,7 @@ const TEAM_INFO = {
   142: ['MIN', 'Minneapolis',  'America/Chicago',     'MSP', 3.5, 20],
   121: ['NYM', 'New York',     'America/New_York',    'LGA', 5.5, 10],
   147: ['NYY', 'New York',     'America/New_York',    'EWR', 5.5, 35],
-  133: ['OAK', 'Oakland',      'America/Los_Angeles', 'OAK', 1.5, 10],
+  133: ['ATH', 'Sacramento',   'America/Los_Angeles', 'SMF', 1.5, 15],   // Sutter Health Park
   143: ['PHI', 'Philadelphia', 'America/New_York',    'PHL', 5.5, 15],
   134: ['PIT', 'Pittsburgh',   'America/New_York',    'PIT', 5.0, 25],
   135: ['SD',  'San Diego',    'America/Los_Angeles', 'SAN', 2.5, 10],
@@ -1184,6 +1206,17 @@ function getHomeCodeFromMatchup(matchup) {
   return parts[1].trim().split(' ')[0].trim();
 }
 
+// How far behind UTC Eastern time is at a given moment, in ms (4h EDT / 5h EST).
+function etOffsetMs(at) {
+  const s = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', timeZoneName: 'shortOffset'
+  }).formatToParts(at).find(p => p.type === 'timeZoneName')?.value || 'GMT-5';
+  const m = s.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+  if (!m) return 5 * 3600000;
+  const sign = m[1] === '-' ? 1 : -1;   // GMT-4 means we ADD 4h to reach UTC
+  return sign * ((+m[2]) * 3600000 + (+(m[3] || 0)) * 60000);
+}
+
 // Parse a dateLabel like "Sat, May 2" plus an ET time like "1:35 PM" into UTC ms.
 // Returns null on failure. Year is assumed to be the current year (or next year if
 // the date has already passed).
@@ -1213,17 +1246,21 @@ function deriveGameStartUTCms(dateLabel, etTimeStr) {
 
     // Pick the year: current year, or next year if the resulting date is more than ~30 days in the past
     const now = new Date();
-    let year = now.getFullYear();
-    // Build candidate as a UTC moment using the ET offset for that day. We approximate
-    // by using a fixed offset of -4h (EDT) for May–Oct and -5h (EST) otherwise. MLB regular
-    // season runs late March through October so DST applies for the vast majority of games.
-    const isDST = (mo >= 2 && mo <= 9); // March (2) through Oct (9) approx
-    const offsetH = isDST ? 4 : 5; // ET is UTC-(4 or 5)
-    let utcMs = Date.UTC(year, mo, day, hh + offsetH, mm);
-    // If the derived date is more than 60 days in the past, assume it's actually next year
-    if (utcMs < now.getTime() - 60 * 24 * 3600000) {
-      utcMs = Date.UTC(year + 1, mo, day, hh + offsetH, mm);
-    }
+    const year = now.getFullYear();
+    // Resolve the real Eastern offset for that calendar day rather than assuming
+    // DST for all of March -- the changeover is mid-month, so early-season dates
+    // were landing an hour off.
+    const toUtc = (y) => {
+      const guess = Date.UTC(y, mo, day, hh, mm);
+      let ms = guess + etOffsetMs(new Date(guess));
+      // One correction pass in case the first guess fell on the other side of a
+      // DST boundary.
+      ms = guess + etOffsetMs(new Date(ms));
+      return ms;
+    };
+    let utcMs = toUtc(year);
+    // If the derived date is more than 60 days in the past, assume it's next year
+    if (utcMs < now.getTime() - 60 * 24 * 3600000) utcMs = toUtc(year + 1);
     return utcMs;
   } catch(e) { return null; }
 }
@@ -1325,6 +1362,30 @@ function saveSettings() {
     try { if (document.getElementById('tabFavs').classList.contains('active')) renderFavs(); } catch(e) {}
     try { if (document.getElementById('tabShared').classList.contains('active')) renderShared(); } catch(e) {}
   }
+}
+
+// ─── ESCAPING ─────────────────────────────────────────────────────────────────
+// Favorites come from localStorage and shared games come from a Firestore
+// collection any group member can write to, so every value from either source is
+// untrusted input by the time it reaches innerHTML.
+const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ESC_MAP[c]);
+}
+// For a value that lands inside a single-quoted JS string inside a double-quoted
+// HTML attribute (onclick="fn('HERE')"). JS-escape first, then entity-escape:
+// the browser decodes entities before parsing the JS, so this order round-trips.
+function escJs(v) {
+  return String(v == null ? '' : v)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/[\r\n\u2028\u2029]/g, ' ')
+    .replace(/[&<>"]/g, c => ESC_MAP[c]);
+}
+// Only emit links we would actually navigate to — blocks javascript: and data:.
+function safeUrl(v) {
+  const s = String(v == null ? '' : v).trim();
+  return /^https?:\/\//i.test(s) ? esc(s) : '';
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -1640,39 +1701,56 @@ function closeModalOutside(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
 }
 
-// ─── SEASON END DATE ──────────────────────────────────────────────────────────
-async function getSeasonEndDate(year) {
+// ─── SEASON WINDOW ────────────────────────────────────────────────────────────
+// Returns { start, end } for a season, or null if MLB hasn't published it yet
+// (the endpoint 404s / returns an empty list for seasons a year or two out).
+async function getSeasonWindow(year) {
   try {
     const r = await fetch(`https://statsapi.mlb.com/api/v1/seasons/${year}?sportId=1`);
+    if (!r.ok) return null;
     const d = await r.json();
-    if (d.seasons?.[0]?.regularSeasonEndDate) return d.seasons[0].regularSeasonEndDate;
+    const s = d.seasons?.[0];
+    if (s?.regularSeasonEndDate) {
+      return { start: s.regularSeasonStartDate || `${year}-03-20`, end: s.regularSeasonEndDate };
+    }
   } catch(e) {}
+  return null;
+}
+// Fallback when the API is unreachable: MLB's regular season runs late March to
+// the last Sunday of September.
+function guessSeasonWindow(year) {
   const d = new Date(`${year}-09-30T12:00:00Z`);
-  while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate()-1);
-  return d.toISOString().split('T')[0];
+  while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() - 1);
+  return { start: `${year}-03-20`, end: d.toISOString().split('T')[0] };
+}
+async function getSeasonEndDate(year) {
+  const w = await getSeasonWindow(year);
+  return (w || guessSeasonWindow(year)).end;
 }
 
 // ─── FETCH GAMES ──────────────────────────────────────────────────────────────
 let activeDays = new Set([0,1,2,3,4,5,6]); // all days default, UI will toggle SAT-only highlight
 
-async function fetchGamesByDays(dowSet) {
-  const today = new Date();
-  const year  = today.getFullYear();
-  const todayStr = today.toISOString().split('T')[0];
-  const endDate  = await getSeasonEndDate(year);
-
-  // Collect all matching dates from today to end of season
-  const matchDates = [];
-  let cur = new Date(todayStr + 'T12:00:00Z');
-  const end = new Date(endDate + 'T12:00:00Z');
+// Every date between two YYYY-MM-DD strings whose day-of-week is in dowSet.
+// Built at UTC noon so daylight-saving shifts can never move a date across a day.
+function datesMatchingDays(startStr, endStr, dowSet) {
+  const out = [];
+  let cur = new Date(startStr + 'T12:00:00Z');
+  const end = new Date(endStr + 'T12:00:00Z');
   while (cur <= end) {
-    if (dowSet.has(cur.getUTCDay())) matchDates.push(cur.toISOString().split('T')[0]);
+    if (dowSet.has(cur.getUTCDay())) out.push(cur.toISOString().split('T')[0]);
     cur = addHours(cur, 24);
   }
-  if (!matchDates.length) return [];
+  return out;
+}
 
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}&startDate=${matchDates[0]}&endDate=${endDate}&gameType=R&hydrate=team`;
+async function fetchSeasonGames(year, startStr, endStr, dowSet) {
+  const matchDates = datesMatchingDays(startStr, endStr, dowSet);
+  if (!matchDates.length) return [];
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&season=${year}`
+            + `&startDate=${matchDates[0]}&endDate=${endStr}&gameType=R&hydrate=team`;
   const resp = await fetch(url);
+  if (!resp.ok) return [];
   const data = await resp.json();
   const dateSet = new Set(matchDates);
   const games = [];
@@ -1683,6 +1761,30 @@ async function fetchGamesByDays(dowSet) {
       if (game.status?.abstractGameState === 'Final') continue;
       games.push({ date: dateObj.date, game });
     }
+  }
+  return games;
+}
+
+async function fetchGamesByDays(dowSet) {
+  const today = new Date();
+  // Portland's calendar date, not UTC's. toISOString() rolls over at 5pm PDT,
+  // which used to make that evening's games disappear from the list.
+  const todayStr = dateStrInTZ(today, 'America/Los_Angeles');
+  const year = Number(todayStr.slice(0, 4));
+
+  // Look at this season and the next one. Between the end of the regular season
+  // and Jan 1 the current season is over, and the app used to show nothing at all
+  // for those three months -- exactly when a group sits down to plan next year.
+  const games = [];
+  for (const y of [year, year + 1]) {
+    const w = (await getSeasonWindow(y)) || (y === year ? guessSeasonWindow(y) : null);
+    if (!w) continue;                        // next season not published yet
+    if (w.end < todayStr) continue;          // season already over
+    const start = w.start > todayStr ? w.start : todayStr;
+    try {
+      games.push(...await fetchSeasonGames(y, start, w.end, dowSet));
+    } catch(e) { console.error('schedule fetch failed for ' + y, e); }
+    if (games.length) break;                 // current season still has games; don't page in next year
   }
   return games;
 }
@@ -1826,12 +1928,15 @@ function buildCard(dateStr, game) {
   const flightBadge = `${tripIcon}${tripStr}`;
   const flightStr = isDriving ? `🚗 ${directDrive}h drive` : (flightHours < 1 ? `~${Math.round(flightHours*60)}m` : `~${flightHours}h`);
   // Multi-source search, with the trip's real dates and time window baked in.
-  const fs = isDriving ? null
+  // A game with no published start time yields null timestamps; without this
+  // guard new Date(null) is the epoch and every link searched 1969-12-31.
+  const hasTimes = t.leavePDXUTCms != null && t.landInCityUTCms != null && t.leaveCityUTCms != null;
+  const fs = (isDriving || !hasTimes) ? null
     : buildFlightSearch(homeIATA, homeTZ, t.leavePDXUTCms, t.landInCityUTCms, t.leaveCityUTCms);
   // expUrl stays on the object for backwards compatibility with favorites and
   // shared docs saved before multi-source search existed.
-  const expUrl    = fs ? fs.providers.find(p => p.key === 'expedia').url : expediaURL(homeIATA, dateStr, dateStr);
-  const bestUrl   = fs ? fs.providers[0].url : expUrl;
+  const expUrl    = fs ? fs.providers.find(p => p.key === 'expedia').url : '';
+  const bestUrl   = fs ? fs.providers[0].url : '';
   const matchup   = `${awayCode}@${homeCode}`;
   const matchupFull = `${awayCode} @ ${homeCode}`;
   const inputId   = `price-${game.gamePk}`;
@@ -1843,8 +1948,10 @@ function buildCard(dateStr, game) {
   // Keep the same yellow chip style; clicking opens Google Maps to the stadium city.
   // For flights it goes straight to the time-filtered Google Flights search.
   const flightBtnHtml = isDriving
-    ? `<a class="expedia-btn" href="https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(homeCity)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗</a>`
-    : `<a class="expedia-btn" href="${bestUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Google Flights, filtered to this trip's times">✈$</a>`;
+    ? `<a class="expedia-btn" href="https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(homeCity)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Driving directions">🚗</a>`
+    : bestUrl
+      ? `<a class="expedia-btn" href="${bestUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Google Flights, filtered to this trip's times">✈$</a>`
+      : `<span class="expedia-btn is-disabled" title="Start time not announced yet">✈ TBD</span>`;
   const dayFlag = s => s ? ` <span style="color:#ff5f57;">${s}</span>` : '';
 
   // Inline card (small) — pass extra fields to openModal so the modal/share/fav
@@ -1868,17 +1975,36 @@ function buildCard(dateStr, game) {
       </div>
       <div class="card-price">
         <span class="p-label">$</span>
-        <input class="p-input" type="text" inputmode="decimal" placeholder="price"
-          value="${savedPrice}"
+        <input class="p-input" type="text" inputmode="decimal" placeholder="round trip"
+          data-price-key="${inputId}"
+          aria-label="Round-trip price you found for ${matchup}"
           onclick="event.stopPropagation()"
           onchange="savePrice('${inputId}',this.value)">
       </div>
     </div>`;
 
-  return { homeCity, homeCode, homeTZ, homeIATA, gameStartUTCms, flightHours, driveMinutes: drive, directDriveHours: directDrive, isDriving: isDriving, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, leavePDXUTCms: t.leavePDXUTCms, arrivePDXUTCms: t.arrivePDXUTCms, leaveCityUTCms: t.leaveCityUTCms, savedPrice, startDisplay: t.startDisplay, html };
+  return { gameId: String(game.gamePk), homeCity, homeCode, homeTZ, homeIATA, gameStartUTCms, flightHours, driveMinutes: drive, directDriveHours: directDrive, isDriving: isDriving, leavePDX: t.leavePDX, leaveCity: t.leaveCity, arrivePDX: t.arrivePDX, leavePDXUTCms: t.leavePDXUTCms, arrivePDXUTCms: t.arrivePDXUTCms, leaveCityUTCms: t.leaveCityUTCms, savedPrice, startDisplay: t.startDisplay, html };
 }
 
-function savePrice(key, val) { try { localStorage.setItem(key, val); } catch(e){} }
+// Card HTML is built once and re-inserted on every filter change, so the price
+// can't live in the baked string -- it would revert to whatever it was at load.
+// Read it back out of storage after each render instead.
+function hydratePrices(root) {
+  if (!root) return;
+  root.querySelectorAll('input[data-price-key]').forEach(inp => {
+    try { inp.value = localStorage.getItem(inp.dataset.priceKey) || ''; } catch(e) {}
+  });
+}
+
+function savePrice(key, val) {
+  const clean = String(val || '').replace(/[^0-9.]/g, '');
+  try { clean ? localStorage.setItem(key, clean) : localStorage.removeItem(key); } catch(e){}
+  // Keep the in-memory model in sync or the Max Price filter reads stale values.
+  const id = String(key).replace(/^price-/, '');
+  const g = allGames.find(x => String(x.gameId) === id);
+  if (g) g.savedPrice = clean;
+  if (activeFilters.maxPrice) render();
+}
 
 // ─── FILTER STATE (multi-select by homeCity) ──────────────────────────────────
 let allGames = [];
@@ -1927,8 +2053,9 @@ function render() {
     });
   }
   if (activeFilters.sameDayOnly) {
+    // Driving trips are NOT exempt here: a night game in Seattle gets you home at
+    // 4am, which is exactly what this filter exists to hide.
     filtered = filtered.filter(g => {
-      if (g.isDriving) return true;
       if (!g.leavePDXUTCms || !g.arrivePDXUTCms) return true;
       return dayDiffInTZ(new Date(g.arrivePDXUTCms), new Date(g.leavePDXUTCms), 'America/Los_Angeles') === 0;
     });
@@ -1984,6 +2111,7 @@ function render() {
     html += `</div>`;
   }
   main.innerHTML = html;
+  hydratePrices(main);
 }
 
 function buildFilterChips(codes) {
@@ -2016,12 +2144,14 @@ function buildFilterChips(codes) {
     bar.appendChild(chip);
   }
 
-  allChip.addEventListener('click', () => {
+  // Assigned, not addEventListener: buildFilterChips() runs on every reload and
+  // listeners were stacking up, so one click fired render() once per past reload.
+  allChip.onclick = () => {
     selectedCodes.clear();
     document.querySelectorAll('#filterBar .chip').forEach(c => c.classList.remove('active'));
     allChip.classList.add('active');
     render();
-  });
+  };
 }
 
 
@@ -2170,6 +2300,7 @@ function toggleFavorite() {
     saveFavorites(favs);
     updateFavBtn(true);
   }
+  updateFavTab();
   if (document.getElementById('tabFavs').classList.contains('active')) renderFavs();
 }
 function updateFavBtn(saved) {
@@ -2214,39 +2345,48 @@ function renderFavs() {
       : ((f.driveMinutes != null) ? (' · 🚗 ' + f.driveMinutes + 'min') : '');
     const endStr = gameEnd ? (' · 🏁 ' + gameEnd + (endTZ ? ' ' + endTZ : '')) : '';
     const landStr = landInCity ? ((isDriving ? ' · 🅿️ ' : ' · 🛬 ') + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
-    const tripLabel = isDriving ? `🚗 ${f.directDriveHours}h drive` : `✈ PDX ${f.flightStr}`;
-    // Rebuild the flight search from raw data so the link picks up the current
+    const tripLabel = isDriving
+      ? `🚗 ${esc(f.directDriveHours)}h drive`
+      : `✈ PDX ${esc(f.flightStr || (f.flightHours ? '~' + f.flightHours + 'h' : ''))}`;
+    // Rebuild the flight search from raw data so the links pick up the current
     // buffer settings and the correct (possibly next-day) return date.
     const fs = flightSearchForItem(f);
-    const flightUrl = fs ? fs.providers[0].url : (f.expUrl || '');
+    const gid = escJs(f.gameId);
+    const links = isDriving
+      ? `<a class="fl-btn" href="https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(f.homeCity || '')}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗 Directions ↗</a>`
+      : fs
+        ? fs.providers.map((p, i) => `<a class="fl-btn${i === 0 ? ' fl-btn-primary' : ''}" href="${safeUrl(p.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"${i === 0 ? ' title="Filtered to this trip\'s times"' : ''}>${esc(p.name)}${i === 0 ? ' ⏱' : ''}</a>`).join('')
+        : (safeUrl(f.expUrl) ? `<a class="fl-btn" href="${safeUrl(f.expUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ Flights ↗</a>` : '');
     return `
-    <div class="fav-card" id="fav-card-${f.gameId}" onclick="openFavDetail('${f.gameId}')">
+    <div class="fav-card" id="fav-card-${esc(f.gameId)}" onclick="openFavDetail('${gid}')">
       <div class="fav-head">
         <div>
-          <div class="fav-matchup">${f.matchup}</div>
-          <div class="fav-date">${f.dateLabel} · ${tripLabel}${landStr}${driveStr}${endStr}</div>
+          <div class="fav-matchup">${esc(f.matchup)}</div>
+          <div class="fav-date">${esc(f.dateLabel)} · ${tripLabel}${esc(landStr)}${esc(driveStr)}${esc(endStr)}</div>
         </div>
-        <button class="fav-remove" onclick="event.stopPropagation();removeFav('${f.gameId}')">✕</button>
+        <button class="fav-remove" onclick="event.stopPropagation();removeFav('${gid}')" aria-label="Remove favorite">✕</button>
       </div>
       <div class="fav-timing">
-        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${arriveby}${arriveTZ ? ' ' + arriveTZ : ''}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${leaveCity}${cityTZ ? ' ' + cityTZ : ''}</div></div>
-        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val y">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave PDX</div><div class="fav-t-val y">${esc(leavePDX)}${leaveTZ ? ' ' + esc(leaveTZ) : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive by</div><div class="fav-t-val g">${esc(arriveby)}${arriveTZ ? ' ' + esc(arriveTZ) : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Leave city</div><div class="fav-t-val r">${esc(leaveCity)}${cityTZ ? ' ' + esc(cityTZ) : ''}</div></div>
+        <div class="fav-t-item"><div class="fav-t-label">Arrive PDX</div><div class="fav-t-val y">${esc(arrivePDX)}${returnTZ ? ' ' + esc(returnTZ) : ''}</div></div>
       </div>
+      <div class="fav-links fl-row-compact">${links}</div>
       <div class="fav-footer">
-        <a class="fav-expedia" href="${flightUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${fs ? 'Google Flights, filtered to this trip\'s times' : 'Flight search'}">✈ FLIGHTS ↗</a>
-        <button class="fav-share-btn" id="fav-share-${f.gameId}" onclick="event.stopPropagation();shareFavGame('${f.gameId}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
+        <button class="fav-share-btn" id="fav-share-${esc(f.gameId)}" onclick="event.stopPropagation();shareFavGame('${gid}')">🔗 ${isShared(f.gameId) ? 'SHARED' : 'SHARE'}</button>
         <div class="fav-price-wrap">
           <span class="fav-price-label">$</span>
-          <input class="fav-price-input" type="text" inputmode="decimal" placeholder="price"
-            value="${saved}"
+          <input class="fav-price-input" type="text" inputmode="decimal" placeholder="round trip"
+            data-price-key="price-${esc(f.gameId)}"
+            aria-label="Round-trip price"
             onclick="event.stopPropagation()"
-            onchange="savePrice('price-${f.gameId}', this.value)">
+            onchange="savePrice('price-${gid}', this.value)">
         </div>
       </div>
     </div>`;
   }).join('');
+  hydratePrices(el);
 }
 
 function removeFav(gameId) {
@@ -2384,9 +2524,10 @@ function renderShared() {
   const mode = getTzMode();
   el.innerHTML = sharedGamesCache.map(f => {
     const dateStr = new Date(f.sharedAt).toLocaleDateString();
-    const byline = f.sharedBy ? (f.sharedBy + ' · ' + dateStr) : ('Shared ' + dateStr);
-    const notesLine = f.notes ? `<div class="shared-meta" style="padding:6px 12px;border-top:1px solid var(--border);background:#15131f;">📝 ${f.notes}</div>` : '';
-    const priceBadge = f.price ? `<span style="color:var(--accent);font-weight:700;margin-right:8px;">$${f.price}</span>` : '';
+    // sharedBy and notes are free text written by other people via Firestore.
+    const byline = f.sharedBy ? (esc(f.sharedBy) + ' · ' + esc(dateStr)) : ('Shared ' + esc(dateStr));
+    const notesLine = f.notes ? `<div class="shared-notes">📝 ${esc(f.notes)}</div>` : '';
+    const priceBadge = f.price ? `<span class="shared-price">$${esc(f.price)}</span>` : '';
 
     backfillTzData(f);
     let leavePDX, arriveby, leaveCity, arrivePDX, startDisplay, gameEnd = '', landInCity = '';
@@ -2408,43 +2549,37 @@ function renderShared() {
     const endLine = gameEnd ? ` · 🏁 ${gameEnd}${endTZ ? ' ' + endTZ : ''}` : '';
     const driveLine = isDriving ? '' : ((f.driveMinutes != null) ? ` · 🚗 ${f.driveMinutes}min` : '');
     const landLine = landInCity ? ((isDriving ? ' · 🅿️ ' : ' · 🛬 ') + landInCity + (landTZ ? ' ' + landTZ : '')) : '';
-    const tripLabel = isDriving ? `🚗 ${f.directDriveHours}h drive` : `✈ PDX ${f.flightStr}`;
+    const tripLabel = isDriving
+      ? `🚗 ${esc(f.directDriveHours)}h drive`
+      : `✈ PDX ${esc(f.flightStr || (f.flightHours ? '~' + f.flightHours + 'h' : ''))}`;
     const fs = flightSearchForItem(f);
-    const flightUrl = fs ? fs.providers[0].url : (f.expUrl || '');
-    const flightBtnLabel = isDriving ? '🚗 DRIVING DIRECTIONS ↗'
-                         : (fs ? '✈ SEARCH FLIGHTS — TIMED ↗' : '✈ SEARCH FLIGHTS ↗');
-    const flightHref = isDriving
-      ? `https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(f.homeCity || '')}`
-      : flightUrl;
+    const fid = escJs(f.fbId);
+    const links = isDriving
+      ? `<a class="fl-btn" href="https://www.google.com/maps/dir/Portland+OR/${encodeURIComponent(f.homeCity || '')}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗 Directions ↗</a>`
+      : fs
+        ? fs.providers.map((p, i) => `<a class="fl-btn${i === 0 ? ' fl-btn-primary' : ''}" href="${safeUrl(p.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"${i === 0 ? ' title="Filtered to this trip\'s times"' : ''}>${esc(p.name)}${i === 0 ? ' ⏱' : ''}</a>`).join('')
+        : (safeUrl(f.expUrl) ? `<a class="fl-btn" href="${safeUrl(f.expUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈ Flights ↗</a>` : '');
 
     return `
-    <div class="shared-card" onclick="openSharedDetail('${f.fbId}')">
+    <div class="shared-card" onclick="openSharedDetail('${fid}')">
       <div class="shared-head">
         <div>
-          <div class="shared-matchup">${f.matchup}</div>
-          <div class="shared-meta">${f.dateLabel} · ${tripLabel}${landLine}${driveLine}${startLine}${endLine}</div>
+          <div class="shared-matchup">${esc(f.matchup)}</div>
+          <div class="shared-meta">${esc(f.dateLabel)} · ${tripLabel}${esc(landLine)}${esc(driveLine)}${esc(startLine)}${esc(endLine)}</div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="shared-remove" onclick="event.stopPropagation();openSharedEdit('${f.fbId}')" style="color:var(--muted);">✏️</button>
-          <button class="shared-remove" onclick="event.stopPropagation();removeShared('${f.fbId}')">✕</button>
+        <div class="shared-actions">
+          <button class="shared-remove" onclick="event.stopPropagation();openSharedEdit('${fid}')" aria-label="Edit">✏️</button>
+          <button class="shared-remove danger" onclick="event.stopPropagation();removeShared('${fid}')" aria-label="Remove shared game">✕</button>
         </div>
       </div>
       <div class="shared-timing">
-        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${leavePDX}${leaveTZ ? ' ' + leaveTZ : ''}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${arriveby}${arriveTZ ? ' ' + arriveTZ : ''}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${leaveCity}${cityTZ ? ' ' + cityTZ : ''}</div></div>
-        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val y">${arrivePDX}${returnTZ ? ' ' + returnTZ : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave PDX</div><div class="shared-t-val y">${esc(leavePDX)}${leaveTZ ? ' ' + esc(leaveTZ) : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive by</div><div class="shared-t-val g">${esc(arriveby)}${arriveTZ ? ' ' + esc(arriveTZ) : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Leave city</div><div class="shared-t-val r">${esc(leaveCity)}${cityTZ ? ' ' + esc(cityTZ) : ''}</div></div>
+        <div class="shared-t-item"><div class="shared-t-label">Arrive PDX</div><div class="shared-t-val y">${esc(arrivePDX)}${returnTZ ? ' ' + esc(returnTZ) : ''}</div></div>
       </div>
       ${notesLine}
-      <div style="padding:8px 12px;border-top:1px solid var(--border);">
-        <a href="${flightHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
-          style="display:block;background:var(--accent);color:#000;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;text-align:center;padding:9px;border-radius:8px;text-decoration:none;">
-          ${flightBtnLabel}
-        </a>
-        <div style="font-family:'DM Mono',monospace;font-size:8px;color:#7d8590;text-align:center;margin-top:5px;">
-          Tap the card for Kayak, Skyscanner, Expedia, Momondo &amp; Southwest
-        </div>
-      </div>
+      <div class="shared-links fl-row-compact">${links}</div>
       <div class="shared-footer">
         ${priceBadge}
         <span class="shared-by">${byline}</span>
@@ -2700,6 +2835,40 @@ async function init() {
     dot.className = 'status-dot error';
     document.getElementById('main').innerHTML = `<div class="error-state">⚠ ${err.message}</div>`;
   }
+}
+
+// ─── SHEET BEHAVIOUR ──────────────────────────────────────────────────────────
+const OVERLAY_IDS = ['modalOverlay','fpOverlay','settingsOverlay','sharePromptOverlay','editSharedOverlay'];
+function anySheetOpen() {
+  return OVERLAY_IDS.some(id => document.getElementById(id)?.classList.contains('open'));
+}
+function closeTopSheet() {
+  // Close the last-opened sheet; the share/edit sheets sit above the detail modal.
+  for (const id of ['editSharedOverlay','sharePromptOverlay','settingsOverlay','fpOverlay','modalOverlay']) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('open')) { el.classList.remove('open'); return true; }
+  }
+  return false;
+}
+function initSheetBehaviour() {
+  // Lock body scroll whenever a sheet is open, so dragging the scrim doesn't
+  // scroll the list behind it.
+  const sync = () => document.body.classList.toggle('sheet-open', anySheetOpen());
+  const obs = new MutationObserver(sync);
+  OVERLAY_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && closeTopSheet()) e.preventDefault();
+  });
+  sync();
+}
+// #fpOverlay is declared after this script block, so wait for the parser.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSheetBehaviour);
+} else {
+  initSheetBehaviour();
 }
 
 init();
